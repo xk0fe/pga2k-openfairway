@@ -1,0 +1,16 @@
+<Project>
+  <!-- Example mods: each folder is a complete mod project. Copy one to start your own. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Private="false": the game already loads OpenFairway.API.dll, so a mod must not ship its own copy. -->
+    <ProjectReference Include="$(MSBuildThisFileDirectory)..\src\OpenFairway.API\OpenFairway.API.csproj" Private="false" />
+    <None Include="mod.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

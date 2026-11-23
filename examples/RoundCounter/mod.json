@@ -1,0 +1,7 @@
+{
+  "name": "Round Counter",
+  "version": "1.0.0",
+  "author": "OpenFairway examples",
+  "description": "Counts the rounds you finish and remembers the count.",
+  "icon": "Icon_Stats"
+}

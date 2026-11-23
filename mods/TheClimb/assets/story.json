@@ -1,0 +1,253 @@
+{
+  "_comment": "Story for THE CLIMB. Each moment has an id, a title, an optional speaker, a text and up to three choices. 'trigger' ties a moment to a milestone (start, first_entry, first_result, first_win, tier_1 .. tier_5, first_sponsor, broke, champion); moments without a trigger turn up at random when a week ends. 'tiers' limits a moment to levels (0 Club Amateur .. 5 World Tour); 'requires' and 'forbids' test flags. Effects: money, energy, reputation, fans, points, form, any attribute key (power, accuracy, short, putting, fitness, mental), 'flag' to set a flag, 'gear' to raise one piece of gear (driver, irons, wedges, putter, ball) by a step. Add your own.",
+  "events": [
+    {
+      "id": "start", "trigger": "start", "title": "NOBODY, YET", "speaker": "Walt Brennan, retired club pro",
+      "text": "\"So you're the one who's been wearing out my range mats.\"\n\nWalt has run the pro shop at your club for thirty years and stopped giving compliments around the same time. He looks at your bag: a hand-me-down driver, irons older than you are, a putter with tape on the grip.\n\n\"You've got a day job, two hundred and fifty to your name, and a swing that might be something. That's more than I started with. The Saturday medal is this week. Enter it. Play it properly. Then we'll talk.\"",
+      "choices": [
+        { "label": "\"I'm going to win it.\"", "result": "Walt almost smiles. \"Everybody is. Go and find out.\"", "effects": { "mental": 2, "flag": "bold_start" } },
+        { "label": "\"I just want to see where I stand.\"", "result": "\"Good. Honest scorecard, honest player. Go and find out.\"", "effects": { "accuracy": 1, "putting": 1 } }
+      ]
+    },
+    {
+      "id": "first_entry", "trigger": "first_entry", "title": "HOW THIS WORKS", "speaker": "Walt Brennan",
+      "text": "\"You're in. Here's the only advice that matters: the card doesn't care how it looked.\"\n\nYour tournament round is a real round. The game opens the match on the event's course; play it out and come back to the main menu, and the result will be waiting.\n\nHigher up the ladder, events run over several rounds. The early rounds are decided by the golfer you have built: your attributes, your gear, your energy. The last round is always yours to play.",
+      "choices": [ { "label": "Understood", "result": "", "effects": {} } ]
+    },
+    {
+      "id": "first_result", "trigger": "first_result", "title": "A NAME ON A SHEET", "speaker": "Walt Brennan",
+      "text": "The results sheet goes up on the clubhouse board with a drawing pin. Your name is on it, typed, like everyone else's.\n\nWalt taps the sheet. \"That's a start. Now do the boring part. A net in the garage, a putting strip, a few dollars at a time. Players aren't built on Saturdays. They're built on Tuesdays.\"",
+      "choices": [ { "label": "Get to work", "result": "", "effects": { "reputation": 1 } } ]
+    },
+    {
+      "id": "first_win", "trigger": "first_win", "title": "THE FIRST ONE", "speaker": "Walt Brennan",
+      "text": "They hand you a pro shop voucher and a small trophy that someone forgot to engrave last year.\n\nWalt waits until the room has emptied. \"Thirty years I've watched people win that. Most of them were happy with it.\" He slides something across the counter: his old yardage book, soft with use. \"You're not going to be. Good.\"",
+      "choices": [
+        { "label": "Take the book", "result": "His handwriting is terrible. The notes are priceless.", "effects": { "mental": 2, "accuracy": 2, "flag": "walts_book" } }
+      ]
+    },
+    {
+      "id": "tier_1", "trigger": "tier_1", "title": "BEYOND THE CLUB GATES", "speaker": "Dane Kessler, county champion",
+      "text": "The regional events are held at courses with proper car parks. In the first one, a player your age is holding court by the putting green, bag with his name stitched on it.\n\n\"New face. Dane Kessler.\" He doesn't offer a hand. \"Word of advice: out here, club champions finish thirtieth. Don't take it personally.\"",
+      "choices": [
+        { "label": "\"See you on the leaderboard.\"", "result": "He laughs, but he looks at your bag for a second longer than he meant to.", "effects": { "mental": 2, "flag": "rival_dane" } },
+        { "label": "Say nothing and go and practise", "result": "You hole forty short putts in a row while he is still talking.", "effects": { "putting": 2, "flag": "rival_dane" } }
+      ]
+    },
+    {
+      "id": "tier_2", "trigger": "tier_2", "title": "A NATIONAL NUMBER", "speaker": "Walt Brennan",
+      "text": "The federation letter arrives with a ranking on it. A real one, with a number.\n\nWalt reads it twice. \"Eighteen holes now, and two rounds. You can't hide a weakness for thirty-six holes. Whatever you least like practising: that's your week.\"\n\nHe pauses. \"And get yourself a caddie. I'm too old to carry that thing.\"",
+      "choices": [ { "label": "\"Thank you, Walt.\"", "result": "\"Don't thank me. Break par.\"", "effects": { "reputation": 3 } } ]
+    },
+    {
+      "id": "tier_3", "trigger": "tier_3", "title": "THE CARD", "speaker": "Priya Nair, player agent",
+      "text": "You hand in your amateur status on a Tuesday. By Thursday a woman in a rental car is waiting by the range.\n\n\"Priya Nair. I represent six players on the mini tours and two who got out of them. You've quit your job, so you now have entry fees, fuel, motels and no salary. This is the part where most people go home.\"\n\nShe gives you a card. \"When you want sponsors to pick up the phone, call me. Until then: make cuts. Cheques first, glory later.\"",
+      "choices": [
+        { "label": "\"I'm not going home.\"", "result": "\"Good. Then I'll see you on Sunday afternoons.\" From now on you can sign an agent on the Team page.", "effects": { "mental": 2, "flag": "met_priya" } },
+        { "label": "Ask what it costs", "result": "\"Ten percent of what you win. Ten percent of nothing is nothing, so I'm motivated.\" From now on you can sign an agent on the Team page.", "effects": { "reputation": 2, "flag": "met_priya" } }
+      ]
+    },
+    {
+      "id": "tier_4", "trigger": "tier_4", "title": "ONE STEP BELOW", "speaker": "Dane Kessler",
+      "text": "The Challenger Tour has courtesy cars, a physio truck and a scoring tent with air conditioning. It also has Dane Kessler, who got here a season before you.\n\nHe finds you on the range. This time he does offer a hand.\n\n\"I looked up that club medal of yours. Took me three goes to get out of the regionals.\" He nods at the board where the tour cards are listed. \"Top of that list goes up. There's room for both of us. Just.\"",
+      "choices": [
+        { "label": "Shake his hand", "result": "A rival who respects you is worth more than a friend who doesn't push you.", "effects": { "reputation": 5, "mental": 2 } },
+        { "label": "\"There's room for one.\"", "result": "He grins. \"There he is.\" The whole range heard it.", "effects": { "fans": 1500, "mental": 3 } }
+      ]
+    },
+    {
+      "id": "tier_5", "trigger": "tier_5", "title": "THE WORLD TOUR", "speaker": "Walt Brennan",
+      "text": "The courier brings a box: a tour badge, a locker number and a schedule with courses on it that you have only seen on television.\n\nYou call the pro shop. Walt answers on the ninth ring.\n\n\"I saw. They put it in the paper, with a photo. You look terrible in it.\" A long pause. \"The mats on the range. I never replaced the one you wore through. Tell them that when they ask where you're from.\"",
+      "choices": [ { "label": "\"I will.\"", "result": "Four rounds a week now, against the best there is. Everything you built comes with you.", "effects": { "fans": 5000, "reputation": 10, "mental": 3 } } ]
+    },
+    {
+      "id": "champion", "trigger": "champion", "title": "THE TOP OF THE CLIMB", "speaker": "Walt Brennan",
+      "text": "The World Tour Championship trophy is heavier than it looks. Kessler is the first to shake your hand on the green, and means it.\n\nIn the press tent they ask where you're from. You tell them about a club with a worn-out range mat and a pro who stopped giving compliments thirty years ago.\n\nYour phone buzzes. One message, from the pro shop.\n\n\"Fine. That was good.\"",
+      "choices": [ { "label": "Keep playing", "result": "There is always next week. But nobody can take this one back.", "effects": { "fans": 50000, "reputation": 50 } } ]
+    },
+    {
+      "id": "first_sponsor", "trigger": "first_sponsor", "title": "A LOGO ON THE BAG", "speaker": "",
+      "text": "The logo arrives as an iron-on patch in an envelope. It is slightly crooked once it is on, and you don't fix it.\n\nSomeone, somewhere, has looked at your results and decided you are worth money. Sponsors pay every week, whether you play or not, and bigger names follow fans, reputation and results.",
+      "choices": [ { "label": "Wear it well", "result": "", "effects": { "reputation": 1 } } ]
+    },
+    {
+      "id": "broke", "trigger": "broke", "title": "IN THE RED", "speaker": "Walt Brennan",
+      "text": "The banking app shows a number with a minus in front of it.\n\nWalt doesn't lecture. He pushes the till drawer shut and says, \"Everybody who ever made it has had this week. Cut what you can't afford, play what you can, and don't spend prize money before it lands.\"",
+      "choices": [
+        { "label": "Borrow $200 from Walt", "result": "\"Pay it back with a top ten.\"", "effects": { "money": 200, "flag": "owes_walt" } },
+        { "label": "\"I'll sort it myself.\"", "result": "He nods. You both know the offer stands.", "effects": { "mental": 2 } }
+      ]
+    },
+
+    {
+      "id": "old_driver", "tiers": [0, 1], "title": "THE GARAGE CLEAR-OUT", "speaker": "Walt Brennan",
+      "text": "Walt is clearing out his garage. \"This driver won me a county title in '98. Yours for sixty, or carry my bag on Sunday and it's free.\"",
+      "choices": [
+        { "label": "Pay the $60", "result": "It's older than you are, but it goes straight. Your first real club.", "effects": { "money": -60, "gear": "driver" } },
+        { "label": "Carry his bag", "result": "Eighteen holes of stories and one free driver. He points out three things in your grip.", "effects": { "energy": -20, "gear": "driver", "accuracy": 2 } },
+        { "label": "No thanks", "result": "He shrugs. \"Suit yourself.\"", "effects": {} }
+      ]
+    },
+    {
+      "id": "boss_shift", "tiers": [0, 1, 2], "title": "MEDAL DAY", "speaker": "Your boss",
+      "text": "Your boss catches you practising putts in the car park. \"I need someone on Saturday. Double pay. I know it's medal day.\"",
+      "choices": [
+        { "label": "Take the double shift", "result": "Rent is rent. Your account looks healthier, your stroke a little rustier.", "effects": { "money": 220, "energy": -25, "putting": -1 } },
+        { "label": "Say you're playing", "result": "He isn't thrilled, but he respects it. \"Then you'd better win something.\"", "effects": { "reputation": 2, "mental": 2 } }
+      ]
+    },
+    {
+      "id": "range_kid", "tiers": [0, 1, 2], "title": "AN ADMIRER", "speaker": "",
+      "text": "A junior on the range has been copying your pre-shot routine all week. His mother asks if you'd give him a lesson.",
+      "choices": [
+        { "label": "Give the lesson for free", "result": "Explaining the swing makes you understand your own. Word gets around the club.", "effects": { "reputation": 4, "accuracy": 1, "energy": -10 } },
+        { "label": "Charge $40", "result": "Easy money, and he hits it better by the end.", "effects": { "money": 40, "energy": -10, "reputation": 1 } },
+        { "label": "You're too busy", "result": "You get your own practice in instead.", "effects": { "putting": 1 } }
+      ]
+    },
+    {
+      "id": "money_match", "tiers": [0, 1, 2], "title": "FIFTY A MAN", "speaker": "",
+      "text": "Two regulars want a money match after work. \"Fifty a man, winner takes it. Unless you're scared.\"",
+      "choices": [
+        { "label": "Play them", "result": "Nine holes with something on the line. You hole the putt that matters and walk away up.", "effects": { "money": 100, "mental": 2, "energy": -15 } },
+        { "label": "Watch from the bar", "result": "You learn a lot watching how they handle the last three holes.", "effects": { "mental": 1 } }
+      ]
+    },
+    {
+      "id": "sore_back", "title": "A TIGHT BACK", "speaker": "",
+      "text": "You wake up with a tight lower back after yesterday's session. There is practice planned today.",
+      "choices": [
+        { "label": "Push through it", "result": "You grind out the session, but you feel it all evening.", "effects": { "energy": -25, "power": 1 } },
+        { "label": "Stretch and rest", "result": "A slow day. You're fresher for it.", "effects": { "energy": 15, "fitness": 1 } }
+      ]
+    },
+    {
+      "id": "rain_day", "title": "RAINED OFF", "speaker": "",
+      "text": "It has rained since dawn and the range is closed. The indoor putting mat at the club is free, and so is the sofa.",
+      "choices": [
+        { "label": "Two hours on the mat", "result": "Six-footers until they bore you. That's the point.", "effects": { "putting": 2, "energy": -10 } },
+        { "label": "Watch old tournaments", "result": "You notice how little the best players do when things go wrong.", "effects": { "mental": 2 } },
+        { "label": "Sleep", "result": "You needed it.", "effects": { "energy": 20 } }
+      ]
+    },
+    {
+      "id": "local_paper", "tiers": [0, 1, 2], "title": "THE LOCAL PAPER", "speaker": "A reporter",
+      "text": "The sports page of the local paper wants two hundred words on \"the club's rising star\". The reporter asks what your goal is.",
+      "choices": [
+        { "label": "\"The World Tour.\"", "result": "It runs as the headline. Half the club thinks you're arrogant; the other half buys you a drink.", "effects": { "fans": 200, "reputation": 2 } },
+        { "label": "\"Next week's medal.\"", "result": "A modest piece, a nice photo. Your mother frames it.", "effects": { "fans": 80, "reputation": 3 } }
+      ]
+    },
+    {
+      "id": "walt_lesson", "tiers": [0, 1, 2], "forbids": [ "walt_lesson_done" ], "title": "TEN MINUTES", "speaker": "Walt Brennan",
+      "text": "\"Bring a wedge. Ten minutes.\"\n\nWalt drops three balls in the worst lie behind the practice green. \"Everybody can hit it off a mat. Show me this one.\"",
+      "choices": [
+        { "label": "Try it his way", "result": "It takes forty minutes, not ten. By the end the ball is coming out soft and you can't explain how.", "effects": { "short": 4, "energy": -10, "flag": "walt_lesson_done" } },
+        { "label": "Ask about putting instead", "result": "\"Different lesson. Same answer: slower.\"", "effects": { "putting": 3, "flag": "walt_lesson_done" } }
+      ]
+    },
+    {
+      "id": "kessler_range", "tiers": [1, 2, 3], "requires": [ "rival_dane" ], "title": "CLOSEST TO THE PIN", "speaker": "Dane Kessler",
+      "text": "Kessler is on the range with a small audience. He spots you.\n\n\"Hundred and fifty yards, one ball each, closest to the flag. Loser buys dinner for everybody watching.\"",
+      "choices": [
+        { "label": "Take the bet", "result": "Yours finishes six feet away. His finishes eight. He pays without a word, and the audience is yours now.", "effects": { "fans": 400, "mental": 2, "reputation": 3 } },
+        { "label": "\"I've got my own practice to do.\"", "result": "\"Thought so.\" It stings. You hit balls until dark.", "effects": { "accuracy": 2, "energy": -10 } }
+      ]
+    },
+    {
+      "id": "college_offer", "tiers": [2], "title": "THE SCHOLARSHIP", "speaker": "A university coach",
+      "text": "A university golf coach calls. A scholarship: coaching, facilities, a degree. But four more years as an amateur.",
+      "choices": [
+        { "label": "Stay on your own path", "result": "You thank him. Somewhere a door closes; the one in front of you is still open.", "effects": { "mental": 3 } },
+        { "label": "Ask for a week at their facilities", "result": "He laughs, then agrees. A week on a launch monitor changes how you see your swing.", "effects": { "accuracy": 3, "power": 2, "energy": -15 } }
+      ]
+    },
+    {
+      "id": "caddie_tip", "tiers": [2, 3, 4, 5], "title": "LOCAL KNOWLEDGE", "speaker": "",
+      "text": "An old caddie at this week's course offers you his notes on the greens for fifty dollars. \"Everything breaks toward the water. Except the ones that don't.\"",
+      "choices": [
+        { "label": "Buy the notes", "result": "Half of it is nonsense. The other half saves you two shots.", "effects": { "money": -50, "putting": 2, "form": 1 } },
+        { "label": "Trust your own eyes", "result": "You walk the greens yourself at dusk.", "effects": { "mental": 1, "energy": -5 } }
+      ]
+    },
+    {
+      "id": "car_trouble", "tiers": [3, 4], "title": "SIX HOURS OUT", "speaker": "",
+      "text": "Six hours from the next event your car starts making a noise no car should make.",
+      "choices": [
+        { "label": "Pay the garage ($300)", "result": "Fixed by morning. You arrive in time for a practice round.", "effects": { "money": -300 } },
+        { "label": "Share a ride with another player", "result": "A long night in a small car, but you split the fuel and make a friend on tour.", "effects": { "energy": -20, "reputation": 2 } }
+      ]
+    },
+    {
+      "id": "motel_week", "tiers": [3], "title": "ROOM 114", "speaker": "",
+      "text": "The motel by the course wants ninety a night. Another player offers the floor of his room for twenty and a share of the pizza.",
+      "choices": [
+        { "label": "Take the floor", "result": "You sleep badly and save money. Mini tour life.", "effects": { "money": 150, "energy": -15 } },
+        { "label": "Pay for a proper bed", "result": "Eight hours of sleep is a piece of equipment too.", "effects": { "money": -120, "energy": 15 } }
+      ]
+    },
+    {
+      "id": "equipment_rep", "tiers": [3, 4, 5], "title": "THE EQUIPMENT VAN", "speaker": "An equipment rep",
+      "text": "An equipment rep finds you on the range. \"We've watched your numbers. Let us fit you for irons this afternoon, no charge. If you like them, we talk.\"",
+      "choices": [
+        { "label": "Spend the afternoon in the van", "result": "A fitter, a launch monitor and a set that feels like it was made for you, because it was.", "effects": { "gear": "irons", "energy": -10 } },
+        { "label": "Stay with what you know", "result": "You trust your old set. He leaves a card anyway.", "effects": { "mental": 2 } }
+      ]
+    },
+    {
+      "id": "priya_call", "tiers": [3, 4, 5], "requires": [ "met_priya" ], "title": "A PHONE CALL", "speaker": "Priya Nair",
+      "text": "\"I have a regional car dealership that wants a pro at its open day. Two hours of smiling, a cheque at the end. You'll hate it.\"",
+      "choices": [
+        { "label": "Do it", "result": "You hated it. The cheque cleared.", "effects": { "money": 1500, "fans": 300, "energy": -15 } },
+        { "label": "Pass", "result": "\"Fine. But the next one you say yes to.\"", "effects": { "energy": 10 } }
+      ]
+    },
+    {
+      "id": "pro_am", "tiers": [4, 5], "title": "THE PRO-AM", "speaker": "",
+      "text": "You are drawn with a local businesswoman in the pro-am. She asks for one tip that will actually help.",
+      "choices": [
+        { "label": "Spend the round coaching her", "result": "She breaks ninety for the first time and tells everyone who helped.", "effects": { "fans": 600, "reputation": 4, "energy": -10 } },
+        { "label": "Focus on your own preparation", "result": "You learn the greens properly. Polite, professional, forgettable.", "effects": { "putting": 2 } }
+      ]
+    },
+    {
+      "id": "charity_day", "tiers": [4, 5], "title": "THE CLINIC", "speaker": "",
+      "text": "A children's hospital asks if you would host a charity clinic on your week off.",
+      "choices": [
+        { "label": "Host it", "result": "A long, loud, brilliant day. The photos go everywhere.", "effects": { "fans": 1500, "reputation": 8, "energy": -20 } },
+        { "label": "Send a signed flag and rest", "result": "They're grateful. You're rested.", "effects": { "energy": 15, "reputation": 1 } }
+      ]
+    },
+    {
+      "id": "swing_change", "tiers": [3, 4, 5], "title": "THE REBUILD", "speaker": "",
+      "text": "A respected coach watches you hit ten balls and says your swing has a ceiling. He can raise it, but you will play worse for a while first.",
+      "choices": [
+        { "label": "Rebuild it", "result": "Three ugly weeks of range sessions. Then one morning it clicks.", "effects": { "power": 4, "accuracy": 3, "form": -1, "energy": -15 } },
+        { "label": "Keep what got you here", "result": "\"Your call.\" You play the swing you own.", "effects": { "mental": 2, "form": 1 } }
+      ]
+    },
+    {
+      "id": "kessler_dinner", "tiers": [4, 5], "requires": [ "rival_dane" ], "title": "THE LATE TABLE", "speaker": "Dane Kessler",
+      "text": "The hotel restaurant is nearly empty. Kessler waves you over and pushes a chair out with his foot.\n\n\"My father thinks this is a hobby. Yours?\"",
+      "choices": [
+        { "label": "Tell him about the club and the day job", "result": "You talk until they stack the chairs. On Sunday you will still try to beat each other senseless.", "effects": { "mental": 3, "reputation": 2 } },
+        { "label": "Keep it to golf", "result": "You compare notes on the back nine. Useful ones.", "effects": { "accuracy": 2 } }
+      ]
+    },
+    {
+      "id": "media_storm", "tiers": [5], "title": "THE QUESTION", "speaker": "A television reporter",
+      "text": "Live on air, a reporter asks whether a player who started on a range mat really belongs out here with players who were coached from the age of six.",
+      "choices": [
+        { "label": "\"Ask the leaderboard.\"", "result": "The clip is everywhere by evening.", "effects": { "fans": 8000, "reputation": 5 } },
+        { "label": "\"Everyone here started somewhere.\"", "result": "Gracious, quotable, and the locker room notices.", "effects": { "fans": 3000, "reputation": 12 } }
+      ]
+    },
+    {
+      "id": "walt_visit", "tiers": [4, 5], "title": "A VISITOR", "speaker": "Walt Brennan",
+      "text": "There is a man in a club blazer behind the ropes on the practice ground, pretending not to be impressed by anything.\n\n\"The federation sent tickets. Thought I'd check they're feeding you.\" He watches you hit three wedges. \"Slower.\"",
+      "choices": [
+        { "label": "Slower", "result": "He is right. He is always right about that.", "effects": { "short": 3, "mental": 2, "form": 1 } }
+      ]
+    }
+  ]
+}

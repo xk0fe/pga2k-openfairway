@@ -1,0 +1,7 @@
+{
+  "name": "Course Browser",
+  "version": "1.0.0",
+  "author": "OpenFairway examples",
+  "description": "A custom screen with every course as a photo card. Pick one to play nine holes.",
+  "icon": "Icon_Courses"
+}

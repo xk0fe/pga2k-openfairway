@@ -1,0 +1,7 @@
+{
+  "name": "Hello Banner",
+  "version": "1.0.0",
+  "author": "OpenFairway examples",
+  "description": "The smallest useful mod: a main menu banner that shows a popup.",
+  "icon": "Icon_Play"
+}

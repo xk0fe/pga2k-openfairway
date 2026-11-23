@@ -1,0 +1,7 @@
+{
+  "name": "Skip Intro Videos",
+  "version": "1.0.0",
+  "author": "OpenFairway",
+  "description": "Jumps past the intro videos and timed logo screens at startup so you reach the title screen sooner.",
+  "icon": "Icon_Play"
+}

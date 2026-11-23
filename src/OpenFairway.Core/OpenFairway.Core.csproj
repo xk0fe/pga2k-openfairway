@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>OpenFairway.Core</RootNamespace>
+    <Version>0.4.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OpenFairway.API\OpenFairway.API.csproj" />
+  </ItemGroup>
+</Project>

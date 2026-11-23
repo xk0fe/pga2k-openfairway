@@ -1,0 +1,48 @@
+# Build output and the local .NET SDK
+/.dotnet/
+/build/
+/dist/
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Downloaded at build or tool time, never committed: Unity Doorstop, ffmpeg
+/third_party/
+
+# Never commit anything derived from the game: dumps, assets, saves, logs, session screenshots.
+dump/
+*.unity3d
+*.resource
+global-metadata.dat
+GameAssembly.dll
+*.log
+/shots/
+mods/*/data/
+examples/*/data/
+
+# Promo video production: recorded game frames, renders, and the scripts tied to one recording session.
+/video/
+/tools/video/
+/tools/record-take.py
+/tools/sheet.py
+/tools/stage-climb-career.py
+
+# Release archives (attach them to a GitHub release instead)
+*.zip
+*.sha256
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store

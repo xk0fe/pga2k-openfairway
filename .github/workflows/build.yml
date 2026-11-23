@@ -1,0 +1,28 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Platform
+        run: dotnet build src/OpenFairway.Core/OpenFairway.Core.csproj -c Release -o build --nologo
+      - name: Launcher
+        run: dotnet build src/OpenFairway.Launcher/OpenFairway.Launcher.csproj -c Release -o build/launcher --nologo
+      - name: Mods and examples
+        shell: pwsh
+        run: |
+          foreach ($project in Get-ChildItem mods, examples -Recurse -Filter *.csproj) {
+            dotnet build $project.FullName -c Release -o "build/$($project.Directory.Parent.Name)/$($project.BaseName)" --nologo
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+      - name: Offline guard test
+        run: dotnet run --project tests/OfflineGuardTest -c Release
