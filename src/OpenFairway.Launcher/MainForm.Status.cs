@@ -43,6 +43,17 @@ namespace OpenFairway.Launcher
             public List<(string Label, string Key, Action Do, bool Primary)> Actions = new List<(string, string, Action, bool)>();
         }
 
+        private static readonly TimeSpan SteamStartLimit = TimeSpan.FromMinutes(3);
+        private static readonly TimeSpan PlatformStartLimit = TimeSpan.FromSeconds(90);
+        private static readonly TimeSpan ModsLoadLimit = TimeSpan.FromSeconds(8);
+        private static readonly TimeSpan StartupLimit = TimeSpan.FromMinutes(6);
+        private static readonly TimeSpan GameStartLimit = TimeSpan.FromMinutes(8);
+        private static readonly TimeSpan LogClockSlack = TimeSpan.FromSeconds(2);
+        private const int ProcessPollMs = 500, LogPollMs = 400, LoaderReadMs = 3000, InstallerHandoverMs = 500;
+        private const int ShowResultMs = 2600, ShowResultBeforeClosingMs = 1800;
+        private const double CopiedLabelSeconds = 2.2;
+        private const int BodyLinesWithActions = 3, BodyLinesWithChecks = 2;
+
         private Checks _checks = new Checks();
         private Phase _phase = Phase.Idle;
         private bool _phaseWithMods, _loaderOn, _autoPlayed;
@@ -120,7 +131,7 @@ namespace OpenFairway.Launcher
                     try
                     {
                         Clipboard.SetText(Problems.Report(problem, _install, _mods, LogReport.Read(_install.GameLog) ?? _session));
-                        _copiedUntil = _now + 2.2;
+                        _copiedUntil = _now + CopiedLabelSeconds;
                     }
                     catch (Exception) { /* the clipboard can be busy; the button can be pressed again */ }
                     break;
@@ -293,7 +304,7 @@ namespace OpenFairway.Launcher
 
                 PaintGlyph(lg, model.Glyph, x0 + 8, r.Y + 64, 8.5f, model.GlyphColor);
                 Gfx.TextFit(lg, model.Headline, _headline, Theme.Text, new RectangleF(x0 + 26, r.Y + 52, x1 - x0 - 26, 24));
-                var bodyLines = model.Actions.Count > 0 ? 3 : 2;
+                var bodyLines = model.Actions.Count > 0 ? BodyLinesWithActions : BodyLinesWithChecks;
                 Gfx.Paragraph(lg, model.Body, _body, Theme.Muted, x0 + 26, r.Y + 79, x1 - x0 - 26, 18, bodyLines);
 
                 if (model.Actions.Count > 0)
@@ -476,7 +487,7 @@ namespace OpenFairway.Launcher
             }
 
             Process? game = null;
-            var deadline = DateTime.UtcNow.AddMinutes(3);
+            var deadline = DateTime.UtcNow + SteamStartLimit;
             while ((game = _install.GameProcess()) == null)
             {
                 if (DateTime.UtcNow > deadline)
@@ -484,14 +495,13 @@ namespace OpenFairway.Launcher
                     Fail(Problems.NoStart(), () => _ = Launch(withMods));
                     return;
                 }
-                await Task.Delay(500);
+                await Task.Delay(ProcessPollMs);
             }
             var gameStarted = DateTime.UtcNow;
 
             if (!withMods)
             {
-                // Give the game a moment to read the loader switch (off), then step aside.
-                await Task.Delay(3000);
+                await Task.Delay(LoaderReadMs);
                 ResetLoader();
                 _phase = Phase.Loaded;
                 MarkDirty();
@@ -504,10 +514,10 @@ namespace OpenFairway.Launcher
             var enabled = _mods.Count(m => m.Enabled);
             while (true)
             {
-                await Task.Delay(400);
+                await Task.Delay(LogPollMs);
                 bool exited;
                 try { exited = game.HasExited; } catch (Exception) { exited = true; }
-                var report = LogReport.Read(_install.GameLog, started.AddSeconds(-2));
+                var report = LogReport.Read(_install.GameLog, started - LogClockSlack);
                 if (report != null)
                 {
                     _session = report;
@@ -521,7 +531,7 @@ namespace OpenFairway.Launcher
                 }
                 if (report == null)
                 {
-                    if ((DateTime.UtcNow - gameStarted).TotalSeconds > 90)
+                    if (DateTime.UtcNow - gameStarted > PlatformStartLimit)
                     {
                         Fail(Problems.NotLoaded(), () => _ = Launch(true));
                         return;
@@ -545,10 +555,9 @@ namespace OpenFairway.Launcher
                 if (report.StartupComplete)
                 {
                     loadedAt ??= DateTime.UtcNow;
-                    // Mods load on the game's main thread just after startup; give them a few seconds.
-                    if (settled >= enabled || (DateTime.UtcNow - loadedAt.Value).TotalSeconds > 8) break;
+                    if (settled >= enabled || DateTime.UtcNow - loadedAt.Value > ModsLoadLimit) break;
                 }
-                if ((DateTime.Now - report.Written).TotalMinutes > 6 || (DateTime.UtcNow - gameStarted).TotalMinutes > 8)
+                if (DateTime.Now - report.Written > StartupLimit || DateTime.UtcNow - gameStarted > GameStartLimit)
                 {
                     Fail(Problems.TooSlow(), null);
                     return;
@@ -584,7 +593,7 @@ namespace OpenFairway.Launcher
         /// switched "Keep the launcher open" off). The launcher comes back when the game closes.</summary>
         private async void AfterStart(Process game)
         {
-            await Task.Delay(_settings.KeepOpen ? 2600 : 1800);
+            await Task.Delay(_settings.KeepOpen ? ShowResultMs : ShowResultBeforeClosingMs);
             if (!_settings.KeepOpen)
             {
                 Close();
@@ -592,7 +601,7 @@ namespace OpenFairway.Launcher
             }
             LauncherLog.Write("Hidden while the game runs");
             Hide();
-            _timer.Stop();
+            StopPacer();
             await Task.Run(() =>
             {
                 try { game.WaitForExit(); } catch (Exception) { }
@@ -680,7 +689,7 @@ namespace OpenFairway.Launcher
                 var setup = await Task.Run(() => Updater.Unpack(zip));
                 _updateStage = "Installing";
                 MarkDirty();
-                await Task.Delay(500);
+                await Task.Delay(InstallerHandoverMs);
                 Updater.Apply(_install, setup, release.Version);
                 LauncherLog.Write("Handed over to the installer");
                 Close();

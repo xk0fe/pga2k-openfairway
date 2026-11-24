@@ -55,7 +55,7 @@ namespace OpenFairway.Launcher
         private void Expand(ModInfo mod, bool open)
         {
             var tween = Expansion(mod);
-            tween.Set(open ? 1f : 0f, _now, 0.26f);
+            tween.Set(open ? 1f : 0f, _now, ExpandTime);
             if (_preview) tween.Snap(open ? 1f : 0f);
             MarkDirty();
         }
@@ -70,7 +70,7 @@ namespace OpenFairway.Launcher
             if (page != Page.None)
             {
                 _shown = page;
-                _pageChangedAt = wasClosed ? _now + 0.12 : _now;
+                _pageChangedAt = wasClosed ? _now + PanelContentDelay : _now;
                 var (x, w) = TabSpan(page);
                 if (wasClosed)
                 {
@@ -79,12 +79,12 @@ namespace OpenFairway.Launcher
                 }
                 else
                 {
-                    _tabX.Set(x, _now, 0.24f);
-                    _tabW.Set(w, _now, 0.24f);
+                    _tabX.Set(x, _now, TabSlideTime);
+                    _tabW.Set(w, _now, TabSlideTime);
                 }
                 if (page == Page.News && _notes == null) _ = LoadNotes();
             }
-            _panel.Set(page == Page.None ? 0f : 1f, _now, page == Page.None ? 0.26f : 0.34f);
+            _panel.Set(page == Page.None ? 0f : 1f, _now, page == Page.None ? PanelCloseTime : PanelOpenTime);
             if (_preview)
             {
                 _panel.Snap(_panel.Target);
@@ -113,7 +113,7 @@ namespace OpenFairway.Launcher
             var i = (int)_shown;
             var max = Math.Max(0, _contentHeight - Viewport.Height + 12);
             var target = Theme.Clamp(_scrollTweens[i].Target + delta, 0, max);
-            _scrollTweens[i].Set(target, _now, 0.26f);
+            _scrollTweens[i].Set(target, _now, ScrollTime);
             MarkDirty();
         }
 
@@ -181,7 +181,7 @@ namespace OpenFairway.Launcher
             var view = Viewport;
             var state = g.Save();
             g.SetClip(new RectangleF(view.X - 2, view.Y - 4, view.Width + 4, view.Height + 4));
-            var enter = Ease.Out((float)((_now - _pageChangedAt) / 0.32));
+            var enter = Ease.Out((float)((_now - _pageChangedAt) / PageFadeTime));
             var dy = 10f * (1f - enter);
             var top = ViewTop + 4 - _scroll[(int)_shown] + dy;
             switch (_shown)
@@ -385,7 +385,7 @@ namespace OpenFairway.Launcher
         private void Toggle(ModInfo mod)
         {
             mod.Enabled = !mod.Enabled;
-            Knob(mod).Set(mod.Enabled ? 1f : 0f, _now, 0.18f);
+            Knob(mod).Set(mod.Enabled ? 1f : 0f, _now, ToggleTime);
             if (!_preview)
                 try { _install.SaveDisabled(_mods); }
                 catch (Exception e) { ShowProblem(Problems.SaveFailed(e), null); }

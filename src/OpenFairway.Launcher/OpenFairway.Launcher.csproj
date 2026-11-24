@@ -21,8 +21,8 @@
     <Reference Include="System.Net.Http" />
   </ItemGroup>
   <ItemGroup>
-    <!-- The turning golf hole, rendered by tools/render-hole.py. -->
-    <EmbeddedResource Include="Assets\hole.bin" LogicalName="OpenFairway.Launcher.hole.bin" />
+    <!-- The turning golf hole, drawn live from this scene (tools/render-hole.py exports it). -->
+    <EmbeddedResource Include="Assets\hole.scene" LogicalName="OpenFairway.Launcher.hole.scene" />
     <!-- What's new, when GitHub cannot be reached. -->
     <EmbeddedResource Include="..\..\CHANGELOG.md" LogicalName="OpenFairway.Launcher.CHANGELOG.md" />
   </ItemGroup>

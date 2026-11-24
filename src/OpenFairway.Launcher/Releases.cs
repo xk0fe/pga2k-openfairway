@@ -40,8 +40,10 @@ namespace OpenFairway.Launcher
         public const string IssuesUrl = RepoUrl + "/issues";
 
         public static readonly string AgentVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0";
-        private static readonly HttpClient Api = Client(TimeSpan.FromSeconds(20));
-        internal static readonly HttpClient Files = Client(TimeSpan.FromMinutes(30));
+        private static readonly TimeSpan ApiTimeout = TimeSpan.FromSeconds(20), DownloadTimeout = TimeSpan.FromMinutes(30);
+        private const int ReleasesPerPage = 30;
+        private static readonly HttpClient Api = Client(ApiTimeout);
+        internal static readonly HttpClient Files = Client(DownloadTimeout);
 
         private static HttpClient Client(TimeSpan timeout)
         {
@@ -52,7 +54,7 @@ namespace OpenFairway.Launcher
 
         public static async Task<List<Release>> Releases()
         {
-            var text = await Api.GetStringAsync($"https://api.github.com/repos/{Repo}/releases?per_page=30").ConfigureAwait(false);
+            var text = await Api.GetStringAsync($"https://api.github.com/repos/{Repo}/releases?per_page={ReleasesPerPage}").ConfigureAwait(false);
             var releases = new List<Release>();
             foreach (var item in Json.Arr(Json.Parse(text)).OfType<Dictionary<string, object>>())
             {

@@ -26,6 +26,9 @@ namespace OpenFairway.Launcher
         public readonly List<string> Errors = new List<string>();
         public readonly List<string> Tail = new List<string>();
 
+        private const int TailLines = 80, MessageLength = 180;
+        private const string Cut = "...";
+
         private static readonly Regex Starting = new Regex(@"^OpenFairway (\S+) starting in ");
         private static readonly Regex LoadingMod = new Regex(@"^Loading mod \S+ \((.+?)\.dll\)");
         private static readonly Regex FailedMod = new Regex(@"^Mod (.+?) failed to load: (.*)$");
@@ -52,7 +55,7 @@ namespace OpenFairway.Launcher
                     var line = raw.TrimEnd('\r');
                     if (line.Length == 0) continue;
                     report.Tail.Add(line);
-                    if (report.Tail.Count > 80) report.Tail.RemoveAt(0);
+                    if (report.Tail.Count > TailLines) report.Tail.RemoveAt(0);
                     // "[12:34:56.789] LEVEL message"; lines that do not start like that continue the line above.
                     if (line.Length < 22 || line[0] != '[' || line[13] != ']') continue;
                     var level = line.Substring(15, 5).Trim();
@@ -86,7 +89,7 @@ namespace OpenFairway.Launcher
         private static string Shorten(string message)
         {
             message = Regex.Replace(message, @"\b(System|Microsoft)(\.\w+)*\.(?=\w+Exception)", "");
-            return message.Length > 180 ? message.Substring(0, 177) + "..." : message;
+            return message.Length > MessageLength ? message.Substring(0, MessageLength - Cut.Length) + Cut : message;
         }
 
         /// <summary>One sentence for the status card about how this session went.</summary>

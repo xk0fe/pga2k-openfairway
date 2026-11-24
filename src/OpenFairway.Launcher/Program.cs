@@ -9,6 +9,8 @@ namespace OpenFairway.Launcher
 {
     internal static class Program
     {
+        private static readonly TimeSpan OldLauncherExitLimit = TimeSpan.FromSeconds(30);
+
         [STAThread]
         private static void Main(string[] args)
         {
@@ -66,7 +68,7 @@ namespace OpenFairway.Launcher
                         show.Set();
                         return;
                     }
-                    try { single.WaitOne(TimeSpan.FromSeconds(30)); } catch (AbandonedMutexException) { }
+                    try { single.WaitOne(OldLauncherExitLimit); } catch (AbandonedMutexException) { }
                 }
                 Application.Run(new MainForm(home, options, show));
             }
@@ -78,7 +80,7 @@ namespace OpenFairway.Launcher
     internal sealed class StartOptions
     {
         public string? Updated, UpdateFailedLog, PretendVersion, Press, Page, State;
-        public bool Play, Drop, Modal, Capture;
+        public bool Play, Drop, Modal, Capture, Still;
         public int Expand = -1;
 
         public static StartOptions Parse(string[] args)
@@ -101,6 +103,7 @@ namespace OpenFairway.Launcher
                 Drop = Array.IndexOf(args, "--drop") >= 0,
                 Modal = Array.IndexOf(args, "--modal") >= 0,
                 Capture = Array.IndexOf(args, "--capture") >= 0,
+                Still = Array.IndexOf(args, "--still") >= 0,         // development: the hole's still, as without OpenGL
             };
         }
     }

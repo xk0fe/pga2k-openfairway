@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Launcher
+- The scene is a blueprint: the turning scan of the hole dissolves, along a ragged edge traced in ink, into a plan of
+  the same course drawn on the same ground and turning with it (OpenStreetMap's fairways, greens, bunkers, water,
+  paths and hole routings, the lidar's contour lines, a symbol for every tree), on a drafting sheet with a grid and a
+  title block. It makes one slow turn every 40 seconds. Map data © OpenStreetMap contributors (ODbL).
+- The hole is drawn live in 3D on the graphics card (OpenGL 3.3), a fresh picture every display refresh, so the turn
+  is perfectly smooth on any display. Without OpenGL the launcher shows a still. The launcher is smaller for it: the
+  scene it draws is 2.3 MB, where the turning pictures were 9 MB.
+
 ## 0.5.0 - 2026-11-24
 
 ### Launcher

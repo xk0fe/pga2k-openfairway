@@ -11,7 +11,6 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Timer = System.Windows.Forms.Timer;
 
 namespace OpenFairway.Launcher
 {
@@ -27,8 +26,23 @@ namespace OpenFairway.Launcher
         private const int W = 1080, H = 640;
         private const float L0 = 48;
         private const float Rise = 14f, EnterTime = 0.45f;
+        private const double EntrancesDone = 1.6;
         private const float TabTracking = 1.4f, TileTracking = 1.6f, PlayTracking = 1.5f, LabelTracking = 2f;
         private const double SweepFirst = 1.4, SweepEvery = 6.0, SweepTime = 1.5;
+
+        private const float HoverTime = 0.16f, ToggleTime = 0.18f, OverlayTime = 0.2f, OverlayCloseTime = 0.16f;
+        private const float TabSlideTime = 0.24f, ScrollTime = 0.26f, ExpandTime = 0.26f, PanelOpenTime = 0.34f, PanelCloseTime = 0.26f;
+        private const double PageFadeTime = 0.32, PanelContentDelay = 0.12;
+        private const float WheelScrollPixels = 72f;
+        private const int WheelDelta = 120;
+
+        private const double AmbientFrameTime = 0.012, AmbientFrameTimeBehindOthers = 0.032;
+        private const int NoCompositionFallbackMs = 15;
+        private const double SetupCheckEvery = 2.0, AutoPlayAfter = 1.2;
+        private const double HoleFadeDelay = 0.05, HoleFadeTime = 1.1, HoleIn = HoleFadeDelay + HoleFadeTime;
+        private const float PanelCoversHole = 0.98f;
+        private const int UpdateLogLinesShown = 6;
+        private const double LabelRevertMargin = 0.1;
 
         private static readonly RectangleF CardRect = new RectangleF(L0, 222, 396, 184);
         private static readonly RectangleF SettingsTile = new RectangleF(806, 352, 228, 54);
@@ -36,7 +50,8 @@ namespace OpenFairway.Launcher
         private static readonly RectangleF PlayTile = new RectangleF(806, 488, 228, 96);
         private static readonly RectangleF CloseRect = new RectangleF(W - 46, 0, 46, 36);
         private static readonly RectangleF MinRect = new RectangleF(W - 92, 0, 46, 36);
-        private static readonly Point HoleCentre = new Point(636, 300);
+        private static readonly Point HoleCentre = new Point(636, 300);   // = ORIGIN in tools/render-hole.py
+        private const int Grid = 24;
 
         private readonly Install _install;
         private readonly StartOptions _options;
@@ -46,9 +61,12 @@ namespace OpenFairway.Launcher
         private readonly CoreConfig _config;
         private List<ModInfo> _mods;
 
-        private readonly Timer _timer = new Timer { Interval = 15 };
+        private readonly ManualResetEventSlim _pacing = new ManualResetEventSlim(false);
+        private Thread? _pacer;
+        private volatile bool _tickQueued, _closing, _animating = true;
+        private volatile float _ambientFrameTime = (float)AmbientFrameTime;
         private readonly Stopwatch _wall = new Stopwatch();
-        private double _now, _lastTick, _lastRecheck;
+        private double _now, _lastTick, _lastRecheck, _lastHoleStep;
         private PointF? _pointer;   // drawn only when rendering frames
 
         private readonly Font _tab, _tile, _playFont, _cardTitle, _link, _noteVersion, _name, _headline, _body, _small, _line, _fine, _badge, _pill, _section;
@@ -92,6 +110,8 @@ namespace OpenFairway.Launcher
         public MainForm(string home, StartOptions options, EventWaitHandle? showSignal = null, bool preview = false, float scale = 1f)
         {
             _install = new Install(home);
+            if (!preview) LauncherLog.Open(_install.LauncherLog);
+            LauncherLog.Write($"Launcher {GitHub.AgentVersion} in {_install.Home}");
             _options = options;
             _preview = preview;
             _scale = scale;
@@ -100,11 +120,13 @@ namespace OpenFairway.Launcher
             FormBorderStyle = FormBorderStyle.None;
             ClientSize = new Size(W, H);
             StartPosition = FormStartPosition.CenterScreen;
-            BackColor = Theme.Ink;
-            DoubleBuffered = true;
+            BackColor = Theme.Paper;
+            // Each paint writes every pixel it covers in one copy (MainForm.Compose.cs), so no back buffer is needed.
+            DoubleBuffered = false;
             KeyPreview = true;
             AllowDrop = !preview;
-            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.Opaque, true);
+            SetStyle(ControlStyles.OptimizedDoubleBuffer, false);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch (Exception) { }
 
             _display = Gfx.Family("Segoe UI Black", "Arial Black");
@@ -132,15 +154,12 @@ namespace OpenFairway.Launcher
             _tabW = NewTween(0);
             for (var i = 0; i < _scrollTweens.Length; i++) _scrollTweens[i] = NewTween(0);
 
-            if (!_preview) LauncherLog.Open(_install.LauncherLog);
-            LauncherLog.Write($"Launcher {GitHub.AgentVersion} in {_install.Home}");
             _settings = LauncherSettings.Load(_install.SettingsFile);
             _config = CoreConfig.Load(_install.ConfigFile);
             _mods = _install.LoadMods();
             foreach (var mod in _mods) Knob(mod);
             Recheck();
             _last = LogReport.Read(_install.GameLog);
-            _timer.Tick += (s, e) => Tick();
 
             // If a previous launch was interrupted, make sure a plain Steam start is unmodified again.
             if (!_preview) try { if (!_checks.GameRunning && _checks.LoaderInstalled) _install.SetLoader(false); } catch (Exception) { }
@@ -154,7 +173,7 @@ namespace OpenFairway.Launcher
             if (_options.UpdateFailedLog != null)
             {
                 var detail = "";
-                try { detail = string.Join(" ", File.ReadAllLines(_options.UpdateFailedLog).Reverse().Take(6).Reverse()); } catch (Exception) { }
+                try { detail = string.Join(" ", File.ReadAllLines(_options.UpdateFailedLog).Reverse().Take(UpdateLogLinesShown).Reverse()); } catch (Exception) { }
                 ShowProblem(Problems.UpdateFailed("The installer stopped with an error", detail), () => _ = CheckForUpdates(thenInstall: true));
             }
             if (_preview) PreparePreview();
@@ -172,7 +191,7 @@ namespace OpenFairway.Launcher
             get
             {
                 var cp = base.CreateParams;
-                cp.Style |= 0x00020000; // WS_MINIMIZEBOX: lets the taskbar button minimise and restore a borderless window
+                cp.Style |= WsMinimizeBox;
                 return cp;
             }
         }
@@ -180,12 +199,17 @@ namespace OpenFairway.Launcher
         protected override void OnHandleCreated(EventArgs e)
         {
             base.OnHandleCreated(e);
+            if (!_preview && !_options.Still && SceneData.Shared is { } scene)
+            {
+                _live = LiveScene.Start(scene, Handle, W, H);
+                _live?.UploadSheet(_sheetPixels ??= Pixels(Sheet(), null));
+            }
             try
             {
-                var round = 2;                    // DWMWCP_ROUND (Windows 11; older systems ignore it)
-                DwmSetWindowAttribute(Handle, 33, ref round, sizeof(int));
-                var border = 0x00221A14;          // a frame colour (COLORREF) that disappears into the dark window
-                DwmSetWindowAttribute(Handle, 34, ref border, sizeof(int));
+                var round = DwmCornerRound;
+                DwmSetWindowAttribute(Handle, DwmWindowCornerPreference, ref round, sizeof(int));
+                var border = ColorRef(Theme.Paper);
+                DwmSetWindowAttribute(Handle, DwmBorderColor, ref border, sizeof(int));
             }
             catch (Exception) { }
         }
@@ -195,7 +219,7 @@ namespace OpenFairway.Launcher
             base.OnShown(e);
             _wall.Restart();
             _lastTick = 0;
-            _timer.Start();
+            StartPacer();
             if (_preview) return;
             _ = CheckForUpdates(thenInstall: _options.Press == "update");
             if (_showSignal != null)
@@ -215,7 +239,7 @@ namespace OpenFairway.Launcher
             if (!Visible) Show();
             if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
             Activate();
-            if (!_timer.Enabled) _timer.Start();
+            StartPacer();
             MarkDirty();
         }
 
@@ -231,12 +255,16 @@ namespace OpenFairway.Launcher
         {
             if (disposing)
             {
-                _timer.Dispose();
+                _closing = true;
+                _pacing.Set();
                 _turfBrush?.Dispose();
                 _turfBitmap?.Dispose();
                 _wordOpen?.Dispose();
                 _wordFairway?.Dispose();
                 _uiLayer?.Dispose();
+                _sheet?.Dispose();
+                _still?.Dispose();
+                _live?.Dispose();
                 _display.Dispose();
                 foreach (var font in new[] { _tab, _tile, _playFont, _cardTitle, _link, _noteVersion, _name, _headline, _body, _small, _line, _fine, _badge, _pill, _section }) font.Dispose();
             }
@@ -333,9 +361,9 @@ namespace OpenFairway.Launcher
         private void SetHover(string key)
         {
             if (key == _hover) return;
-            if (_hover.Length > 0) Fade(_hover).Set(0, _now, 0.16f);
+            if (_hover.Length > 0) Fade(_hover).Set(0, _now, HoverTime);
             _hover = key;
-            if (key.Length > 0) Fade(key).Set(1, _now, 0.16f);
+            if (key.Length > 0) Fade(key).Set(1, _now, HoverTime);
             if (!_preview) Cursor = key.Length == 0 ? Cursors.Default : _regions.LastOrDefault(r => r.Key == key)?.Cursor ?? Cursors.Hand;
             MarkDirty();
         }
@@ -363,7 +391,7 @@ namespace OpenFairway.Launcher
                 if (_modal != null) return;
                 // Anywhere that is not a control moves the window, as a title bar would.
                 ReleaseCapture();
-                SendMessage(Handle, 0xA1 /* WM_NCLBUTTONDOWN */, (IntPtr)2 /* HTCAPTION */, IntPtr.Zero);
+                SendMessage(Handle, WmNcLButtonDown, (IntPtr)HtCaption, IntPtr.Zero);
                 return;
             }
             _pressed = hit;
@@ -391,7 +419,7 @@ namespace OpenFairway.Launcher
             base.OnMouseWheel(e);
             if (_page == Page.None || _modal != null) return;
             CommitEditor(true);
-            ScrollBy(-e.Delta / 120f * 72f);
+            ScrollBy(-e.Delta / (float)WheelDelta * WheelScrollPixels);
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
@@ -424,7 +452,7 @@ namespace OpenFairway.Launcher
             if (files != null && files.Any(ModInstaller.Accepts) && !_updating && _phase == Phase.Idle)
             {
                 e.Effect = DragDropEffects.Copy;
-                _dropFade.Set(1, _now, 0.2f);
+                _dropFade.Set(1, _now, OverlayTime);
             }
             else e.Effect = DragDropEffects.None;
             MarkDirty();
@@ -433,14 +461,14 @@ namespace OpenFairway.Launcher
         protected override void OnDragLeave(EventArgs e)
         {
             base.OnDragLeave(e);
-            _dropFade.Set(0, _now, 0.2f);
+            _dropFade.Set(0, _now, OverlayTime);
             MarkDirty();
         }
 
         protected override void OnDragDrop(DragEventArgs e)
         {
             base.OnDragDrop(e);
-            _dropFade.Set(0, _now, 0.2f);
+            _dropFade.Set(0, _now, OverlayTime);
             if (e.Data?.GetData(DataFormats.FileDrop) is string[] files) _ = InstallDropped(files.Where(ModInstaller.Accepts).ToArray());
             MarkDirty();
         }
@@ -448,14 +476,14 @@ namespace OpenFairway.Launcher
         private void ShowModal(string title, string body, string confirm, Action onConfirm)
         {
             _modal = new Dialog { Title = title, Body = body, Confirm = confirm, OnConfirm = onConfirm };
-            _modalFade.Set(1, _now, 0.2f);
+            _modalFade.Set(1, _now, OverlayTime);
             MarkDirty();
         }
 
         private void CloseModal()
         {
             _modal = null;
-            _modalFade.Set(0, _now, 0.16f);
+            _modalFade.Set(0, _now, OverlayCloseTime);
             MarkDirty();
         }
 
@@ -469,6 +497,37 @@ namespace OpenFairway.Launcher
             if (!_preview) Invalidate();
         }
 
+        private void StartPacer()
+        {
+            _pacing.Set();
+            if (_pacer != null) return;
+            _pacer = new Thread(() =>
+            {
+                while (!_closing)
+                {
+                    _pacing.Wait();
+                    if (_closing) return;
+                    if (DwmFlush() != 0) Thread.Sleep(NoCompositionFallbackMs);
+                    var waited = _wall.Elapsed.TotalSeconds - _lastTick;
+                    if (_tickQueued || (!_animating && waited < _ambientFrameTime)) continue;
+                    _tickQueued = true;
+                    try
+                    {
+                        BeginInvoke(new Action(() =>
+                        {
+                            _tickQueued = false;
+                            Tick();
+                        }));
+                    }
+                    catch (ObjectDisposedException) { return; }
+                    catch (InvalidOperationException) { return; }
+                }
+            }) { IsBackground = true, Name = "frame pacer" };
+            _pacer.Start();
+        }
+
+        private void StopPacer() => _pacing.Reset();
+
         private void Tick()
         {
             var now = _wall.Elapsed.TotalSeconds;
@@ -481,15 +540,13 @@ namespace OpenFairway.Launcher
                 _openNewsAt = 0;
                 OpenPage(Page.News);
             }
-            if (_options.Play && !_autoPlayed && now > 1.2)
+            if (_options.Play && !_autoPlayed && now > AutoPlayAfter)
             {
                 _autoPlayed = true;
                 _ = Launch(true);
             }
-            if (now - _lastRecheck > 2.0 && _phase == Phase.Idle && !_updating && !_rechecking)
+            if (now - _lastRecheck > SetupCheckEvery && _phase == Phase.Idle && !_updating && !_rechecking)
             {
-                // Listing processes and reading Steam's manifest takes a few milliseconds: do it off the window's
-                // thread so it never makes an animation stutter.
                 _lastRecheck = now;
                 _rechecking = true;
                 Task.Run(() => ReadChecks()).ContinueWith(t =>
@@ -502,8 +559,8 @@ namespace OpenFairway.Launcher
                 }, TaskScheduler.FromCurrentSynchronizationContext());
             }
 
-            var animating = now < 1.6 || SweepActive(now) || SweepActive(previous) || SpinnerVisible()
-                || _tweens.Any(t => t.Moving(now)) || _fades.Values.Any(t => t.Moving(now)) || _copiedUntil > now - 0.1;
+            var animating = now < EntrancesDone || SpinnerVisible()
+                || _tweens.Any(t => t.Moving(now)) || _fades.Values.Any(t => t.Moving(now)) || _copiedUntil + LabelRevertMargin > now;
             for (var i = 0; i < _scroll.Length; i++)
             {
                 var value = _scrollTweens[i].Value(now);
@@ -514,14 +571,33 @@ namespace OpenFairway.Launcher
                     if (ClientRectangle.Contains(PointToClient(Cursor.Position))) SetHover(HitTest(PointToClient(Cursor.Position)));
                 }
             }
+            if (_live != null)
+            {
+                if (!Visible || WindowState == FormWindowState.Minimized) return;
+                _ambientFrameTime = 0f;
+                if (animating) _uiDirty = true;
+                _animating = true;
+                PresentLive();
+                return;
+            }
             if (animating || _uiDirty)
             {
+                _animating = true;
                 _uiDirty = true;
                 Invalidate();
+                return;
             }
-            else if (Turntable.Shared is { } hole && _holeArea.Width > 0 && hole.Index(now) != hole.Index(previous) && _panel.Value(now) < 0.98f)
+            var interval = Form.ActiveForm == this ? AmbientFrameTime : AmbientFrameTimeBehindOthers;
+            _ambientFrameTime = (float)interval;
+            _animating = false;
+            if (now - _lastHoleStep < interval) return;
+            var sweep = SweepActive(now) || SweepActive(_lastHoleStep);
+            var turning = false;   // without the live scene the hole is a still
+            if (!sweep && !turning) return;
+            _lastHoleStep = now;
+            if (sweep) Invalidate(Rectangle.Ceiling(RectangleF.Inflate(_wordBounds, 4, 4)));
+            if (turning)
             {
-                // Only the turning hole changed: redraw its area, compositing the cached interface over it.
                 var visible = _holeArea;
                 var panelLeft = (int)(W - PanelW * _panel.Value(now));
                 if (visible.Right > panelLeft) visible.Width = Math.Max(0, panelLeft - visible.X);
@@ -568,37 +644,15 @@ namespace OpenFairway.Launcher
 
         // ---- painting --------------------------------------------------------------------------------------------
 
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            var g = e.Graphics;
-            using (var ink = new SolidBrush(Theme.Ink)) g.FillRectangle(ink, e.ClipRectangle);
-            PaintBackdrop(g);
-            if (_uiDirty || _uiLayer == null)
-            {
-                if (_uiLayer == null) _uiLayer = new Bitmap(W, H, PixelFormat.Format32bppPArgb);
-                using (var lg = Graphics.FromImage(_uiLayer))
-                {
-                    lg.Clear(Color.Transparent);
-                    Gfx.Quality(lg);
-                    PaintInterface(lg);
-                }
-                _uiDirty = false;
-            }
-            var state = g.Save();
-            g.CompositingMode = CompositingMode.SourceOver;
-            g.InterpolationMode = InterpolationMode.NearestNeighbor;
-            g.PixelOffsetMode = PixelOffsetMode.Half;
-            g.DrawImage(_uiLayer, 0, 0, W, H);
-            g.Restore(state);
-        }
 
         /// <summary>The whole window in one pass, at any scale (stills and video frames).</summary>
         public void PaintScene(Graphics g)
         {
             Gfx.Quality(g);
-            g.Clear(Theme.Ink);
-            PaintBackdrop(g);
+            DrawSheet(g, null);
+            PaintBackdrop(g, null);
             PaintInterface(g);
+            PaintSweep(g);
         }
 
         private void PaintInterface(Graphics g)
@@ -619,27 +673,37 @@ namespace OpenFairway.Launcher
                 : new List<HotRegion>(_building);
         }
 
-        private void PaintBackdrop(Graphics g)
+        private LiveScene? _live;
+        private Bitmap? _still;
+
+        private static Rectangle HoleRect(SceneData scene) => new Rectangle(scene.OriginX, scene.OriginY, scene.FrameWidth, scene.FrameHeight);
+
+        private float HoleFade => Ease.Out((float)((_now - HoleFadeDelay) / HoleFadeTime));
+
+        /// <summary>The still of the hole: for stills of the window, and when the launcher cannot draw it live.</summary>
+        private Bitmap? Still() => _still ??= SceneData.Shared?.StillImage();
+
+        private void PaintBackdrop(Graphics g, Rectangle? clip)
         {
-            var hole = Turntable.Shared;
-            if (hole == null) return;
-            var dest = new Rectangle(HoleCentre.X - hole.Width / 2, HoleCentre.Y - hole.Height / 2, hole.Width, hole.Height);
+            var scene = SceneData.Shared;
+            var frame = Still();
+            if (scene == null || frame == null) return;
+            var dest = HoleRect(scene);
             _holeArea = dest;
-            var e = Ease.Out((float)((_now - 0.05) / 1.1));
+            var e = HoleFade;
             if (e <= 0f) return;
-            var frame = hole.Frame(_now);
             var state = g.Save();
             if (_scale == 1f)
             {
-                // At the window's own size the frame is copied pixel for pixel.
                 g.InterpolationMode = InterpolationMode.NearestNeighbor;
                 g.PixelOffsetMode = PixelOffsetMode.Half;
             }
             if (e >= 1f)
             {
-                // The frames are opaque (the ink is in them), so they are copied rather than blended.
                 g.CompositingMode = CompositingMode.SourceCopy;
-                g.DrawImage(frame, dest);
+                var part = clip.HasValue && _scale == 1f ? Rectangle.Intersect(dest, clip.Value) : dest;
+                if (part.Width > 0 && part.Height > 0)
+                    g.DrawImage(frame, part, part.X - dest.X, part.Y - dest.Y, part.Width, part.Height, GraphicsUnit.Pixel);
             }
             else
                 using (var attributes = new ImageAttributes())
@@ -647,6 +711,68 @@ namespace OpenFairway.Launcher
                     attributes.SetColorMatrix(new ColorMatrix { Matrix33 = e });
                     g.DrawImage(frame, dest, 0, 0, frame.Width, frame.Height, GraphicsUnit.Pixel, attributes);
                 }
+            g.Restore(state);
+        }
+
+        private Bitmap? _sheet;
+
+        /// <summary>The blueprint sheet the scene is drawn on: paper, a drafting grid, a border and a title block.
+        /// The hole's frames carry the same paper and grid at their edges, pixel for pixel, so they join it without
+        /// a seam (tools/render-hole.py, sheet).</summary>
+        private Bitmap Sheet()
+        {
+            if (_sheet != null) return _sheet;
+            var w = (int)Math.Round(W * _scale);
+            var h = (int)Math.Round(H * _scale);
+            var pixels = new int[w * h];
+            int paper = Theme.Paper.ToArgb(), minor = Theme.GridMinor.ToArgb(), major = Theme.GridMajor.ToArgb();
+            for (var y = 0; y < h; y++)
+            {
+                var ly = (int)(y / _scale);
+                for (var x = 0; x < w; x++)
+                {
+                    var lx = (int)(x / _scale);
+                    pixels[y * w + x] = lx % (Grid * 5) == 0 || ly % (Grid * 5) == 0 ? major : lx % Grid == 0 || ly % Grid == 0 ? minor : paper;
+                }
+            }
+            var sheet = new Bitmap(w, h, PixelFormat.Format32bppPArgb);
+            var data = sheet.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.WriteOnly, PixelFormat.Format32bppPArgb);
+            Marshal.Copy(pixels, 0, data.Scan0, pixels.Length);
+            sheet.UnlockBits(data);
+
+            // A border and a title block, outside the area the hole's frames cover.
+            using (var g = Graphics.FromImage(sheet))
+            {
+                Gfx.Quality(g);
+                g.ScaleTransform(_scale, _scale);
+                using (var pen = new Pen(Theme.Alpha(Theme.Blueprint, 0.22f), 1f)) g.DrawRectangle(pen, 12.5f, 12.5f, W - 25, H - 25);
+                using (var title = Gfx.Font("Bahnschrift SemiBold", 11.5f, FontStyle.Regular, "Segoe UI"))
+                using (var credit = Gfx.Font("Bahnschrift", 9.5f, FontStyle.Regular, "Segoe UI"))
+                {
+                    const string hole = "HOLE 8  ·  PAR 4  ·  LIDAR SCAN";
+                    const string osm = "MAP © OPENSTREETMAP CONTRIBUTORS";
+                    var cx = HoleCentre.X;
+                    var tw = Gfx.TitleWidth(hole, title, 1.6f);
+                    Gfx.Title(g, hole, title, Theme.Alpha(Theme.Blueprint, 0.55f), cx - tw / 2, 588, 1.6f);
+                    var ow = Gfx.TitleWidth(osm, credit, 1.2f);
+                    Gfx.Title(g, osm, credit, Theme.Alpha(Theme.Blueprint, 0.38f), cx - ow / 2, 607, 1.2f);
+                }
+            }
+            return _sheet = sheet;
+        }
+
+        private void DrawSheet(Graphics g, Rectangle? clip)
+        {
+            var state = g.Save();
+            g.CompositingMode = CompositingMode.SourceCopy;
+            g.InterpolationMode = InterpolationMode.NearestNeighbor;
+            g.PixelOffsetMode = PixelOffsetMode.Half;
+            if (clip.HasValue && _scale == 1f)
+            {
+                var part = Rectangle.Intersect(clip.Value, new Rectangle(0, 0, W, H));
+                if (part.Width > 0 && part.Height > 0) g.DrawImage(Sheet(), part, part.X, part.Y, part.Width, part.Height, GraphicsUnit.Pixel);
+            }
+            else g.DrawImage(Sheet(), 0, 0, W, H);
             g.Restore(state);
         }
 
@@ -697,32 +823,36 @@ namespace OpenFairway.Launcher
             {
                 using (var white = new SolidBrush(Theme.Text)) lg.FillPath(white, open);
                 lg.FillPath(_turfBrush!, fairway);
-
-                // Now and then a band of sunlight passes over the grass.
-                if (SweepActive(_now))
-                {
-                    var k = Ease.InOut((float)(((_now - SweepFirst) % SweepEvery) / SweepTime));
-                    var fb = fairway.GetBounds();
-                    const float band = 150f;
-                    var cx = fb.X - band + (fb.Width + band * 2) * k;
-                    var state = lg.Save();
-                    lg.SetClip(fairway, CombineMode.Intersect);
-                    var r = new RectangleF(cx - band / 2, fb.Y - 10, band, fb.Height + 20);
-                    using (var light = new LinearGradientBrush(new RectangleF(r.X - 1, r.Y, r.Width + 2, r.Height), Color.Transparent, Color.Transparent, 20f))
-                    {
-                        light.InterpolationColors = new ColorBlend
-                        {
-                            Colors = new[] { Color.FromArgb(0, 255, 250, 225), Color.FromArgb(62, 255, 250, 225), Color.FromArgb(0, 255, 250, 225) },
-                            Positions = new[] { 0f, 0.5f, 1f },
-                        };
-                        lg.FillRectangle(light, r);
-                    }
-                    lg.Restore(state);
-                }
             });
 
             var tagline = new RectangleF(L0 + 1, _wordBounds.Bottom + 16, 320, 20);
             Reveal(g, 0.16, tagline, lg => Gfx.TextFit(lg, "Offline mods for PGA TOUR 2K25", _body, Theme.Muted, tagline));
+        }
+
+        /// <summary>Now and then a band of sunlight passes over the grass of the wordmark. It is drawn over the cached
+        /// interface, so it never makes the whole interface draw again.</summary>
+        private void PaintSweep(Graphics g)
+        {
+            var fairway = _wordFairway;
+            if (fairway == null || !SweepActive(_now) || Entered(0.08) < 1f || _modal != null || _dropFade.Value(_now) > 0.001f) return;
+            var k = Ease.InOut((float)(((_now - SweepFirst) % SweepEvery) / SweepTime));
+            var fb = fairway.GetBounds();
+            const float band = 150f;
+            var cx = fb.X - band + (fb.Width + band * 2) * k;
+            var state = g.Save();
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.SetClip(fairway, CombineMode.Intersect);
+            var r = new RectangleF(cx - band / 2, fb.Y - 10, band, fb.Height + 20);
+            using (var light = new LinearGradientBrush(new RectangleF(r.X - 1, r.Y, r.Width + 2, r.Height), Color.Transparent, Color.Transparent, 20f))
+            {
+                light.InterpolationColors = new ColorBlend
+                {
+                    Colors = new[] { Color.FromArgb(0, 255, 250, 225), Color.FromArgb(62, 255, 250, 225), Color.FromArgb(0, 255, 250, 225) },
+                    Positions = new[] { 0f, 0.5f, 1f },
+                };
+                g.FillRectangle(light, r);
+            }
+            g.Restore(state);
         }
 
         private void PaintHomeLinks(Graphics g)
@@ -872,83 +1002,13 @@ namespace OpenFairway.Launcher
             using (var pen = new Pen(Color.Black, 1.1f) { LineJoin = LineJoin.Round }) g.DrawPolygon(pen, points);
         }
 
-        /// <summary>The turning hole's frames, embedded in the launcher (Assets/hole.bin, from tools/render-hole.py:
-        /// "OFH2", count, width, height, frames per second, then each frame as a length and a JPEG). Only the frame
-        /// on screen is decoded.</summary>
-        private sealed class Turntable
-        {
-            private readonly byte[][] _frames;
-            private readonly double _fps;
-            private Bitmap? _bitmap;
-            private int _shown = -1;
+        private const int WsMinimizeBox = 0x00020000;
+        private const int DwmWindowCornerPreference = 33, DwmBorderColor = 34, DwmCornerRound = 2;
+        private const int WmNcLButtonDown = 0xA1, HtCaption = 2;
 
-            public int Width { get; }
-            public int Height { get; }
+        private static int ColorRef(Color c) => c.R | (c.G << 8) | (c.B << 16);
 
-            private Turntable(byte[][] frames, int width, int height, double fps)
-            {
-                _frames = frames;
-                Width = width;
-                Height = height;
-                _fps = fps;
-            }
-
-            private static Turntable? _shared;
-            private static bool _tried;
-
-            public static Turntable? Shared
-            {
-                get
-                {
-                    if (_tried) return _shared;
-                    _tried = true;
-                    try
-                    {
-                        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("OpenFairway.Launcher.hole.bin");
-                        if (stream == null) return null;
-                        using var reader = new BinaryReader(stream);
-                        var magic = new string(reader.ReadChars(4));
-                        if (magic != "OFH1" && magic != "OFH2") return null;
-                        var count = reader.ReadInt32();
-                        var width = reader.ReadInt32();
-                        var height = reader.ReadInt32();
-                        var fps = magic == "OFH2" ? reader.ReadInt32() : 24;
-                        var frames = new byte[count][];
-                        for (var i = 0; i < count; i++) frames[i] = reader.ReadBytes(reader.ReadInt32());
-                        _shared = new Turntable(frames, width, height, fps);
-                    }
-                    catch (Exception)
-                    {
-                        _shared = null; // the launcher works without its picture
-                    }
-                    return _shared;
-                }
-            }
-
-            public int Index(double seconds) => (int)(Math.Max(0, seconds) * _fps) % _frames.Length;
-
-            public Bitmap Frame(double seconds)
-            {
-                var index = Index(seconds);
-                if (index != _shown || _bitmap == null)
-                {
-                    using (var stream = new MemoryStream(_frames[index]))
-                    using (var image = Image.FromStream(stream))
-                    {
-                        // Premultiplied pixels are the fastest to draw.
-                        if (_bitmap == null) _bitmap = new Bitmap(Width, Height, PixelFormat.Format32bppPArgb);
-                        using (var g = Graphics.FromImage(_bitmap))
-                        {
-                            g.CompositingMode = CompositingMode.SourceCopy;
-                            g.DrawImage(image, 0, 0, Width, Height);
-                        }
-                    }
-                    _shown = index;
-                }
-                return _bitmap;
-            }
-        }
-
+        [DllImport("dwmapi.dll")] private static extern int DwmFlush();
         [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
         [DllImport("user32.dll")] private static extern bool ReleaseCapture();
         [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);

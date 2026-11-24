@@ -17,6 +17,8 @@ namespace OpenFairway.Launcher
 
     internal static class Problems
     {
+        private const int GameLogLinesInReport = 40, LauncherLogLinesInReport = 25;
+
         public static Problem GameMissing() => new Problem
         {
             Id = "game-missing", Title = "The game is not where it was",
@@ -154,11 +156,11 @@ namespace OpenFairway.Launcher
             {
                 text.AppendLine();
                 text.AppendLine("Last lines of openfairway.log:");
-                foreach (var line in log.Tail.Skip(Math.Max(0, log.Tail.Count - 40))) text.AppendLine(line);
+                foreach (var line in log.Tail.Skip(Math.Max(0, log.Tail.Count - GameLogLinesInReport))) text.AppendLine(line);
             }
             text.AppendLine();
             text.AppendLine("Last lines of launcher.log:");
-            foreach (var line in LauncherLog.Tail(25)) text.AppendLine(line);
+            foreach (var line in LauncherLog.Tail(LauncherLogLinesInReport)) text.AppendLine(line);
             var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             return profile.Length > 3 ? text.ToString().Replace(profile, "%USERPROFILE%") : text.ToString();
         }

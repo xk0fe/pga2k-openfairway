@@ -19,6 +19,9 @@ namespace OpenFairway.Launcher
         public static readonly Color TurfLight = Hex(0x84BE54), TurfDark = Hex(0x56943C);
         /// <summary>All good: ready to play, loaded. Between the two turf stripes, a little richer.</summary>
         public static readonly Color Green = Hex(0x62B444);
+        /// <summary>The blueprint sheet behind the scene. tools/render-hole.py bakes the same paper and grid into the
+        /// hole's frames (PAPER, GRID_MINOR, GRID_MAJOR, LINE there), so these must stay equal to those.</summary>
+        public static readonly Color Paper = Hex(0x0D2646), GridMinor = Hex(0x132E52), GridMajor = Hex(0x1A385F), Blueprint = Hex(0xCEE2FF);
 
         public static Color Hex(int rgb, int alpha = 255) => Color.FromArgb(alpha, (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
         public static Color Alpha(Color c, float alpha) => Color.FromArgb(Clamp((int)Math.Round(alpha * c.A), 0, 255), c);
@@ -69,6 +72,7 @@ namespace OpenFairway.Launcher
         private static readonly StringFormat Typographic = MakeTypographic();
         private static readonly Bitmap MeasureSurface = new Bitmap(1, 1);
         private static readonly Graphics Measurer = MakeMeasurer();
+        private const int WrapCacheLimit = 4000;
         private static readonly Dictionary<(string, Font, int), List<string>> WrapCache = new Dictionary<(string, Font, int), List<string>>();
 
         private static StringFormat MakeTypographic()
@@ -91,8 +95,7 @@ namespace OpenFairway.Launcher
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
             g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-            // HighQuality compositing (gamma-correct blending) cost a full redraw 40 ms instead of 10, for no visible gain.
-            g.CompositingQuality = CompositingQuality.HighSpeed;
+            g.CompositingQuality = CompositingQuality.HighSpeed;   // HighQuality (gamma-correct) is 4x slower, no visible gain
         }
 
         public static GraphicsPath Round(RectangleF r, float radius)
@@ -202,14 +205,14 @@ namespace OpenFairway.Launcher
                 }
                 lines.Add(line);
             }
-            if (WrapCache.Count > 4000) WrapCache.Clear();
+            if (WrapCache.Count > WrapCacheLimit) WrapCache.Clear();
             WrapCache[key] = lines;
             return lines;
         }
 
         /// <summary>Wrapped text, at most <paramref name="maxLines"/> lines (the last one cut with an ellipsis).
         /// Returns the height used.</summary>
-        public static float Paragraph(Graphics g, string text, Font font, Color color, float x, float y, float width, float lineHeight, int maxLines = 99)
+        public static float Paragraph(Graphics g, string text, Font font, Color color, float x, float y, float width, float lineHeight, int maxLines = int.MaxValue)
         {
             var lines = Wrap(text, font, width);
             var count = Math.Min(lines.Count, maxLines);
@@ -222,7 +225,7 @@ namespace OpenFairway.Launcher
             return count * lineHeight;
         }
 
-        public static int LineCount(string text, Font font, float width, int maxLines = 99) => Math.Min(maxLines, Wrap(text, font, width).Count);
+        public static int LineCount(string text, Font font, float width, int maxLines = int.MaxValue) => Math.Min(maxLines, Wrap(text, font, width).Count);
 
         public static Font Font(string family, float px, FontStyle style, string fallback)
         {

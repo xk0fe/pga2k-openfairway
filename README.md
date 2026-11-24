@@ -44,6 +44,9 @@ Nothing to pre-install, no firewall rule, no admin rights.
 
 ## The launcher
 
+- **The hole.** The course in the middle is a real one, drawn live in 3D on your graphics card from public lidar and an
+  aerial photo, and it dissolves into a blueprint of its course (OpenStreetMap) that turns with it. It needs OpenGL
+  3.3, which any graphics card of the last ten years has; without it the launcher shows a still.
 - **Status.** One card says whether you can play, and if not, why and what to do: the game's Steam build, the
   loader, the OpenFairway version and updates. After Play it follows the start, confirms that OpenFairway loaded
   inside the game, and comes back when the game closes with how the session went. When something stops it, it says
@@ -120,7 +123,7 @@ tools\package.ps1
 ```
 
 builds the platform, the mods and the launcher, downloads the Unity Doorstop loader, and assembles
-`dist\OpenFairway` (about 80 MB: it bundles the .NET 8 runtime). `tools\dev-cycle.ps1` is the developer loop: it
+`dist\OpenFairway` (about 75 MB: it bundles the .NET 8 runtime). `tools\dev-cycle.ps1` is the developer loop: it
 deploys the build into the game, starts it in a small window and enables the developer console
 (`tools\devcon.py`). The game is found through Steam, or set `OPENFAIRWAY_GAME` to its folder.
 
@@ -133,7 +136,7 @@ deploys the build into the game, starts it in a small window and enables the dev
 | `examples/` | Example mods for the guide |
 | `installer/` | Install and uninstall scripts |
 | `docs/` | The modding guide (`tools/make-docs.py`) and the design language (`design.md`) |
-| `tools/` | Packaging, the developer loop, and the generators for the wordmark, banner and the launcher's 3D hole |
+| `tools/` | Packaging, the developer loop, and the generators for the wordmark, banner and the launcher's 3D hole (`render-hole.py`, which exports `Assets/hole.scene`) |
 
 ## Ground rules
 

@@ -50,6 +50,9 @@ Sampled from PGA TOUR 2K25's own menus (2560x1440 captures), so our screens sit 
 | gold     | `#E9B949` | trophies, wins, promotion, and an update that is ready |
 | turf     | stripes `#84BE54` / `#56943C` | the mowed-grass texture: the wordmark, course art and the launcher's PLAY tile |
 | green    | `#62B444` | all good: the Ready and Loaded badge, its bar and the ticks under it |
+| paper    | `#0D2646` | the launcher's blueprint sheet |
+| grid     | `#132E52` / `#1A385F` | its drafting grid, every 24 px, a stronger line every fifth |
+| blueprint | `#CEE2FF` | blueprint ink: the drawn course, the sheet's border and title block |
 
 The game renders its UI in linear colour space: translucent white shows as mid grey. Use opaque colours for
 fills in game, and keep any translucent scrim dark.
@@ -61,6 +64,15 @@ Loaded), gold for an update that is ready, red when something needs the player (
 something is under way (Starting, Updating). Each check under it is a small green tick, or a red mark. PLAY is a tile
 of the wordmark's mowed fairway with white lettering; UPDATE, a different action, is cream. A problem
 always says what happened, then what to do, and offers the next step as a button.
+
+## Blueprint
+
+The launcher's scene is a drafting sheet: blueprint paper with a grid, a thin border and a title block. The turning
+hole is a photographic scan in the middle that dissolves, along a ragged edge traced in ink, into a plan of the same
+course drawn on the same ground: the real course becoming its drawing. The launcher draws the hole live over the sheet:
+the photo covers it, the drawing is ink laid on it, so the grid runs through the drawing. The still (for machines
+without OpenGL, and for screenshots) has the sheet's paper and grid baked in at the launcher's own pixels, so `paper`
+and `grid` above, `HoleCentre` in the launcher and `ORIGIN` in `tools/render-hole.py` must change together.
 
 ## Wordmark
 
