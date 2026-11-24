@@ -404,7 +404,7 @@ internal sealed unsafe class GameUi : IGameUi, IMainMenu
             if (!Models(tabModel).SequenceEqual(wanted))
             {
                 Step("setting tiles of " + tab);
-                if (++_tileResets <= 20) Log.Info($"[ui] tiles of {tab} re-applied (#{_tileResets})");
+                if (++_tileResets <= 20) Log.Detail($"[ui] tiles of {tab} re-applied (#{_tileResets})");
                 // One view refresh per freshly built menu is enough; never restart it while it is in progress.
                 if (!_menu.Refreshed && _menu.RefreshStage == 0) _menu.RefreshStage = 1;
                 _rt.Invoke(_setArrayData, tabModel, _rt.NewArray(_modelClass, wanted.ToArray()));
@@ -587,7 +587,7 @@ internal sealed unsafe class GameUi : IGameUi, IMainMenu
     private readonly HashSet<string> _steps = new();
 
     /// <summary>Writes a breadcrumb the first time each step runs, so a crash can be traced to it.</summary>
-    private void Step(string what) { if (_steps.Add(what)) Log.Info("[ui] " + what); }
+    private void Step(string what) { if (_steps.Add(what)) Log.Detail("[ui] " + what); }
 
     // ---- banner --------------------------------------------------------------------------------------------
 

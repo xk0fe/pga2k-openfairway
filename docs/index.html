@@ -72,7 +72,7 @@ footer { color: var(--faint); font-size: 13px; margin-top: 80px; border-top: 1px
 <body>
 <div class="layout">
 <nav>
-  <div class="brand"><img src="images/wordmark.png" alt="OpenFairway"><div>Modding guide and API, v0.4.0</div></div>
+  <div class="brand"><img src="images/wordmark.png" alt="OpenFairway"><div>Modding guide and API, v0.5.0</div></div>
   <div class="nav-group">Guide</div>
   <a href="#overview">Overview</a>
   <a href="#first-mod">Your first mod</a>
@@ -170,7 +170,16 @@ sprites; the mod manager shows the rest.</p>
   <span class="p">&quot;author&quot;</span>: <span class="s">&quot;You&quot;</span>,
   <span class="p">&quot;description&quot;</span>: <span class="s">&quot;The smallest useful mod.&quot;</span>,
   <span class="p">&quot;icon&quot;</span>: <span class="s">&quot;Icon_Play&quot;</span>
-}</code></pre></div></section>
+}</code></pre></div>
+<p>Two optional fields say what a mod needs. <code>openfairway</code> is the oldest OpenFairway it works with: on an older
+one the platform leaves the mod out and says why, and the rest still load. <code>requires</code> lists the folders of mods
+it needs; the launcher marks the mod when one of them is off or missing, and the log says so too.</p>
+<div class="code"><div class="code-title">mod.json (optional fields)</div><button class="copy" type="button">Copy</button><pre><code>{
+  <span class="p">&quot;openfairway&quot;</span>: <span class="s">&quot;0.5.0&quot;</span>,
+  <span class="p">&quot;requires&quot;</span>: [<span class="s">&quot;OfflineCareer&quot;</span>]
+}</code></pre></div>
+<p>Players can install a mod by dropping its <code>.zip</code> (or its folder) on the launcher. A zip that holds the mod's
+folder, or just its DLL and <code>mod.json</code>, both work.</p></section>
 <section id="build"><h2>Build and install</h2>
 <p>A mod project only needs .NET 8 and a reference to <code>OpenFairway.API.dll</code>, which ships with OpenFairway in
 <code>&lt;game&gt;\OpenFairway\core\</code>. The examples in this repo use <code>examples/Directory.Build.props</code>

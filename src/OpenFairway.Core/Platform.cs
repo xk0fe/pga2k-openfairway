@@ -26,6 +26,7 @@ internal static unsafe class Platform
         Log.Open(Path.Combine(HomeDir, "logs", "openfairway.log"));
         Log.Info($"OpenFairway {typeof(Platform).Assembly.GetName().Version} starting in {GameDir}");
         _config = Config.Load(Path.Combine(HomeDir, "config.json"));
+        Log.Detailed = string.Equals(_config.LogLevel, "detailed", StringComparison.OrdinalIgnoreCase);
 
         if (!OfflineGuard.Enforce(_config.OfficialHosts))
         {

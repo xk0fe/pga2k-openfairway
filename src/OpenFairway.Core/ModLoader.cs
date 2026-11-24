@@ -82,8 +82,20 @@ internal sealed class ModLoader : IModManager, IActionRegistry
             else Log.Info($"Mod {folder} is switched off.");
         }
 
+        var platform = typeof(ModLoader).Assembly.GetName().Version ?? new Version(0, 0, 0);
+        var on = toLoad.Select(m => Path.GetFileName(m.Dir)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var (dir, dll) in toLoad)
         {
+            var folder = Path.GetFileName(dir);
+            var (minimum, requires) = ReadRequirements(dir);
+            // A mod built for a newer platform would fail half-way through; leave it out and say why.
+            if (minimum != null && Version.TryParse(minimum, out var needed) && needed > platform)
+            {
+                Log.Warn($"Mod {folder} left out: it needs OpenFairway {minimum} or newer (this is {platform.ToString(3)}).");
+                continue;
+            }
+            foreach (var required in requires.Where(r => !on.Contains(r)))
+                Log.Warn($"Mod {folder} needs {required}, which is off or not installed; it may not work.");
             try
             {
                 var assembly = Assembly.LoadFrom(dll);
@@ -98,6 +110,28 @@ internal sealed class ModLoader : IModManager, IActionRegistry
             {
                 Log.Error($"Mod {Path.GetFileName(dir)} failed to load: {e}");
             }
+        }
+    }
+
+    /// <summary>mod.json's optional "openfairway" (the oldest platform version the mod works with) and "requires"
+    /// (folders of mods it needs).</summary>
+    private static (string? Minimum, string[] Requires) ReadRequirements(string dir)
+    {
+        try
+        {
+            var manifest = Path.Combine(dir, "mod.json");
+            if (!File.Exists(manifest)) return (null, []);
+            using var json = JsonDocument.Parse(File.ReadAllText(manifest));
+            var root = json.RootElement;
+            var minimum = root.TryGetProperty("openfairway", out var m) && m.ValueKind == JsonValueKind.String ? m.GetString() : null;
+            var requires = root.TryGetProperty("requires", out var r) && r.ValueKind == JsonValueKind.Array
+                ? r.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.String).Select(e => e.GetString()!).ToArray()
+                : [];
+            return (minimum, requires);
+        }
+        catch (Exception)
+        {
+            return (null, []);
         }
     }
 

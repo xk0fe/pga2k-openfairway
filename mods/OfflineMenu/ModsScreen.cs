@@ -41,6 +41,14 @@ internal sealed class ModsScreen
         _screen.Invalidate(true);
     }
 
+    public bool IsOpen => _screen.IsOpen;
+
+    public void Toggle()
+    {
+        if (_screen.IsOpen) _screen.Close();
+        else Open();
+    }
+
     private void Draw(IUiCanvas c)
     {
         var mods = _ctx.Mods.Installed.OrderBy(m => m.Folder == _ownFolder ? 1 : 0).ThenBy(m => m.Name).ToList();

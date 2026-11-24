@@ -1,7 +1,7 @@
 {
   "name": "Offline Main Menu",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "author": "OpenFairway",
-  "description": "Offline main menu in the game's own style: MyCAREER, MyPLAYER, Quick Play and Training on HOME, a banner that opens the mod manager, and only things that work offline.",
+  "description": "Offline main menu in the game's own style: MyCAREER, MyPLAYER, Quick Play and Training on HOME, a banner and a key (F8, changed in the launcher's Settings) that open the mod manager, and only things that work offline.",
   "icon": "Icon_Settings"
 }

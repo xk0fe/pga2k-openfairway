@@ -2,6 +2,7 @@
   "name": "Offline Progression",
   "version": "0.1.0",
   "author": "OpenFairway",
+  "requires": ["OfflineCareer"],
   "description": "Rounds you play offline level up your golfer, clubs and ball, the way 2K's servers would online; each club level unlocks one of its upgrades. 3x pace by default (data\\settings.json). Needs Offline Career. VC, store items, tokens and passes are untouched.",
   "icon": "SkillIcon"
 }

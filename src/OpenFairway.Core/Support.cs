@@ -16,6 +16,12 @@ internal static class Log
         _writer = new StreamWriter(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read)) { AutoFlush = true };
     }
 
+    /// <summary>Set from config.json ("LogLevel": "detailed"); the launcher's Settings switch it.</summary>
+    public static bool Detailed { get; set; }
+
+    /// <summary>Step-by-step lines that only help when chasing a problem.</summary>
+    public static void Detail(string m) { if (Detailed) Write("DEBUG", m); }
+
     public static void Info(string m) => Write("INFO ", m);
     public static void Warn(string m) => Write("WARN ", m);
     public static void Error(string m) => Write("ERROR", m);
@@ -52,6 +58,9 @@ internal sealed class Config
 
     /// <summary>"auto" (when missing or the game build changed), "always" or "never".</summary>
     public string DumpTypes { get; set; } = "auto";
+
+    /// <summary>"normal", or "detailed" to also log each step the in-game screens take.</summary>
+    public string LogLevel { get; set; } = "normal";
 
     public static Config Load(string path)
     {

@@ -166,6 +166,11 @@ def reference(types):
 
 # ---- the page --------------------------------------------------------------------------------------------------
 
+MOD_JSON_NEEDS = '''{
+  "openfairway": "0.5.0",
+  "requires": ["OfflineCareer"]
+}'''
+
 INSTALL_STEPS = r'''dotnet build -c Release
 mkdir "<game>\OpenFairway\mods\HelloBanner"
 copy bin\Release\HelloBanner.dll "<game>\OpenFairway\mods\HelloBanner"
@@ -217,7 +222,13 @@ once when the game is up. Everything the platform offers comes in through <a hre
 {example("HelloBanner")}
 <p>Next to the DLL goes a <code>mod.json</code>. The <code>icon</code> is the name of one of the game's own interface
 sprites; the mod manager shows the rest.</p>
-{block(mod_json, 'json', 'mod.json')}''')
+{block(mod_json, 'json', 'mod.json')}
+<p>Two optional fields say what a mod needs. <code>openfairway</code> is the oldest OpenFairway it works with: on an older
+one the platform leaves the mod out and says why, and the rest still load. <code>requires</code> lists the folders of mods
+it needs; the launcher marks the mod when one of them is off or missing, and the log says so too.</p>
+{block(MOD_JSON_NEEDS, 'json', 'mod.json (optional fields)')}
+<p>Players can install a mod by dropping its <code>.zip</code> (or its folder) on the launcher. A zip that holds the mod's
+folder, or just its DLL and <code>mod.json</code>, both work.</p>''')
 
     section('build', 'Build and install', f'''
 <p>A mod project only needs .NET 8 and a reference to <code>OpenFairway.API.dll</code>, which ships with OpenFairway in

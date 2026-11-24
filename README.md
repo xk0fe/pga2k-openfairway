@@ -32,20 +32,38 @@ PGA TOUR. It runs inside your own copy of the game, offline only, and unlocks no
 
 1. Download `OpenFairway-<version>.zip` from [Releases](https://github.com/xk0fe/pga2k25-openfairway/releases/latest) and unzip it anywhere.
 2. Double-click **Install OpenFairway.cmd**. It finds the game through Steam by itself.
-3. Open **OpenFairway** from your desktop, switch mods on or off, and press **Play**.
+3. Open **OpenFairway** from your desktop and press **Play**. Mods, Settings and What's new are beside it.
 
 Nothing to pre-install, no firewall rule, no admin rights.
 
-- **Play** starts the game through Steam with the loader on for that one launch. The game process is cut off from
-  the network from the inside, so it always runs offline.
+- **Play** starts the game through Steam with the loader on for that one launch, confirms that OpenFairway loaded
+  inside the game, and steps aside until you close it. The game process is cut off from the network from the
+  inside, so it always runs offline.
 - **Play without mods**, or starting the game from Steam as usual, gives the normal, unmodified online game.
 - **Uninstall OpenFairway.cmd** removes everything the installer added.
+
+## The launcher
+
+- **Status.** One card says whether you can play, and if not, why and what to do: the game's Steam build, the
+  loader, the OpenFairway version and updates. After Play it follows the start, confirms that OpenFairway loaded
+  inside the game, and comes back when the game closes with how the session went. When something stops it, it says
+  so plainly, with Retry, the logs, and a report to copy into an issue.
+- **Updates.** When a newer release is on GitHub, Play becomes Update. The download is checked against the SHA-256
+  GitHub lists for it and installed by the release's own installer; your mods, settings and saves stay.
+- **Mods.** Switch mods on and off, open one for its full description, what it needs and how it did last time, or
+  drop a mod's `.zip` on the window to install it.
+- **What's new** shows the release notes of every version. **Settings** has the launcher's behaviour, update checks,
+  the key that opens the mod manager in game (F8), launch options for the game, a Steam file check, and switches for
+  mod makers (detailed log, developer console).
+
+The launcher contacts GitHub, and only GitHub, to look for updates and read release notes; nothing about you is
+sent, and Settings can switch it off. The game itself always runs offline with mods.
 
 ## The mods
 
 | Mod | What it does |
 |---|---|
-| Offline Main Menu | The offline main menu, the OpenFairway banner and the in-game mod manager. |
+| Offline Main Menu | The offline main menu, the OpenFairway banner and the in-game mod manager (F8). |
 | Offline Career | The game's MyCAREER and MyPLAYER offline, with a local golfer and save. |
 | Offline Progression | Rounds played offline give the club, ball and golfer XP 2K's servers would. 3x pace by default (`mods\OfflineProgression\data\settings.json`). |
 | The Climb | A management career mode built on custom screens. |
@@ -97,7 +115,7 @@ tools\package.ps1
 ```
 
 builds the platform, the mods and the launcher, downloads the Unity Doorstop loader, and assembles
-`dist\OpenFairway` (about 75 MB: it bundles the .NET 8 runtime). `tools\dev-cycle.ps1` is the developer loop: it
+`dist\OpenFairway` (about 80 MB: it bundles the .NET 8 runtime). `tools\dev-cycle.ps1` is the developer loop: it
 deploys the build into the game, starts it in a small window and enables the developer console
 (`tools\devcon.py`). The game is found through Steam, or set `OPENFAIRWAY_GAME` to its folder.
 

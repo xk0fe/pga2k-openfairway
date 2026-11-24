@@ -23,8 +23,11 @@ Forza Horizon 5 menus are plain.
   every chip, no rings around every number. One accent per screen, used for one thing.
 - Lists before cards. A card only when it holds a picture.
 - Hierarchy by size and weight, not by colour. Body text is regular weight, sentence case.
-- Titles: heavy italic uppercase (in game: the game's heading font; on Windows: Segoe UI Black Italic).
-- Corners: 4 px on tiles, rows and in-game buttons (the game's tiles); full pill only for switches and the launcher's Play button.
+- Titles: in game, the game's own heading font, in its own heavy italic (the game's default style). Everywhere else
+  (the launcher, the docs) titles are upright: uppercase Segoe UI Bold with about 1.5 px between letters, and Segoe
+  UI Black only for the launcher's Play tile. No italic that is not the game's own.
+- Corners: 4 px on tiles, rows, buttons and the launcher's Play tile (the game's tiles); full pill only for switches and
+  status badges.
 - Borders: 1 px, `line` colour, only on tiles that sit on a photo.
 
 ## Palette
@@ -44,15 +47,24 @@ Sampled from PGA TOUR 2K25's own menus (2560x1440 captures), so our screens sit 
 | faint    | `#6E7486` | tertiary text, disabled |
 | cream    | `#FDEDDA` | selection fill (the game's selected tab): selected row, tab, primary button; text on it is `bg` |
 | red      | `#E0323F` | golf red: under-par scores, pending changes, "live" |
-| gold     | `#E9B949` | trophies, wins, promotion only |
-| turf     | stripes `#84BE54` / `#56943C` | only as the mowed-grass texture (wordmark, course art); never a flat UI colour |
+| gold     | `#E9B949` | trophies, wins, promotion, and an update that is ready |
+| turf     | stripes `#84BE54` / `#56943C` | the mowed-grass texture: the wordmark, course art and the launcher's PLAY tile |
+| green    | `#62B444` | all good: the Ready and Loaded badge, its bar and the ticks under it |
 
 The game renders its UI in linear colour space: translucent white shows as mid grey. Use opaque colours for
 fills in game, and keep any translucent scrim dark.
 
+## Status
+
+The launcher's status card carries one badge and a 3 px bar in the same colour: green when all is well (Ready,
+Loaded), gold for an update that is ready, red when something needs the player (Action needed, Not loaded), slate while
+something is under way (Starting, Updating). Each check under it is a small green tick, or a red mark. PLAY is a tile
+of the wordmark's mowed fairway with white lettering; UPDATE, a different action, is cream. A problem
+always says what happened, then what to do, and offers the next step as a button.
+
 ## Wordmark
 
-"OPEN" in `text`, "FAIRWAY" filled with mowed fairway stripes (`tools/make-wordmark.py`, Segoe UI Black
+The logo keeps its slant, drawn after the game's own heavy italic headings. "OPEN" in `text`, "FAIRWAY" filled with mowed fairway stripes (`tools/make-wordmark.py`, Segoe UI Black
 Italic). Never put the wordmark on a grass photo; it sits on navy or a dark scrim.
 
 ## Motion
