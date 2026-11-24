@@ -20,7 +20,7 @@ PGA TOUR. It runs inside your own copy of the game, offline only, and unlocks no
 | | |
 |---|---|
 | ![Main menu](docs/images/menu.jpg) | ![Mod manager](docs/images/mods.jpg) |
-| **Offline main menu.** The game boots straight into an offline menu that only shows what works offline. | **Mods, switched in game.** A mod manager in the game's own style, and the same switches in the launcher. |
+| **Offline main menu.** The game boots straight into an offline menu that only shows what works offline. | **Mods, switched in game.** A mod manager in the game's own style (F8 anywhere), and the same switches in the launcher. |
 | ![MyPLAYER](docs/images/myplayer.jpg) | ![Golf bag](docs/images/golf-bag.jpg) |
 | **MyPLAYER offline.** Create and edit your golfer: appearance, hair, outfits, golf bag. | **Clubs level up offline.** Rounds you play award club, ball and golfer XP; each club level unlocks an upgrade. |
 | ![MyCAREER](docs/images/mycareer.jpg) | ![Gameplay](docs/images/gameplay.jpg) |
@@ -55,6 +55,11 @@ Nothing to pre-install, no firewall rule, no admin rights.
 - **What's new** shows the release notes of every version. **Settings** has the launcher's behaviour, update checks,
   the key that opens the mod manager in game (F8), launch options for the game, a Steam file check, and switches for
   mod makers (detailed log, developer console).
+
+| | |
+|---|---|
+| ![Mods in the launcher](docs/images/launcher-mods.jpg) | ![Launcher settings](docs/images/launcher-settings.jpg) |
+| **Mods.** Each mod opens to what it does, what it needs and how it did last time. | **Settings.** Saved as you change them; they apply the next time you play. |
 
 The launcher contacts GitHub, and only GitHub, to look for updates and read release notes; nothing about you is
 sent, and Settings can switch it off. The game itself always runs offline with mods.
