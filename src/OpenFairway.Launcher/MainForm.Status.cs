@@ -96,7 +96,7 @@ namespace OpenFairway.Launcher
 
         /// <summary>A problem with the installation itself, which blocks playing with mods until it is fixed.</summary>
         private Problem? SetupProblem() =>
-            !_checks.GameInstalled ? Problems.GameMissing()
+            !_checks.GameInstalled ? Problems.GameMissing(_install.Edition)
             : _checks.OtherLoader ? Problems.OtherLoader()
             : !_checks.CoreInstalled ? Problems.CoreMissing()
             : !_checks.LoaderInstalled ? Problems.LoaderMissing()
@@ -154,9 +154,9 @@ namespace OpenFairway.Launcher
         private List<CardLine> CheckLines()
         {
             var lines = new List<CardLine>();
-            if (!_checks.GameInstalled) lines.Add(Line(Glyph.Alert, Theme.Red, "PGA TOUR 2K25 not found"));
+            if (!_checks.GameInstalled) lines.Add(Line(Glyph.Alert, Theme.Red, _install.Edition.Name + " not found"));
             else if (_checks.Build?.UpdatePending == true) lines.Add(Line(Glyph.Alert, Theme.Gold, "Steam has a game update"));
-            else lines.Add(Line(Glyph.Check, Theme.Green, _checks.Build?.BuildId is { Length: > 0 } id ? "Game build " + id : "PGA TOUR 2K25 found"));
+            else lines.Add(Line(Glyph.Check, Theme.Green, _checks.Build?.BuildId is { Length: > 0 } id ? "Game build " + id : _install.Edition.Name + " found"));
 
             lines.Add(!_checks.CoreInstalled ? Line(Glyph.Alert, Theme.Red, "OpenFairway files missing") : Line(Glyph.Check, Theme.Green, "OpenFairway " + InstalledVersion));
 
@@ -451,7 +451,7 @@ namespace OpenFairway.Launcher
             Recheck();
             if (_checks.GameRunning)
             {
-                ShowProblem(Problems.GameRunning(), () => _ = Launch(withMods));
+                ShowProblem(Problems.GameRunning(_install.Edition), () => _ = Launch(withMods));
                 return;
             }
             if (withMods && SetupProblem() is { } setup)
@@ -657,9 +657,10 @@ namespace OpenFairway.Launcher
             var release = _available;
             if (release == null || _updating || _preview) return;
             Recheck();
-            if (_checks.GameRunning)
+            // The update replaces OpenFairway in every game it is in, so none of them may be running.
+            if (_installs.FirstOrDefault(i => i.GameRunning) is { } running)
             {
-                ShowProblem(Problems.GameRunning(), () => _ = RunUpdate());
+                ShowProblem(Problems.GameRunning(running.Edition), () => _ = RunUpdate());
                 return;
             }
             _problem = null;
@@ -690,7 +691,7 @@ namespace OpenFairway.Launcher
                 _updateStage = "Installing";
                 MarkDirty();
                 await Task.Delay(InstallerHandoverMs);
-                Updater.Apply(_install, setup, release.Version);
+                Updater.Apply(_home, _installs, setup, release.Version);
                 LauncherLog.Write("Handed over to the installer");
                 Close();
             }
@@ -745,13 +746,26 @@ namespace OpenFairway.Launcher
                 return;
             }
 
+            // A mod reaches into one game's own code: it goes only where it was made for.
+            if (packages.FirstOrDefault(p => !GameEditions.ModRunsIn(p.Games, _install.Edition)) is { } foreign)
+            {
+                temps.ForEach(ModInstaller.Cleanup);
+                var madeFor = (foreign.Games.Length == 0 ? new[] { GameEditions.FirstSupported } : foreign.Games)
+                    .Select(id => GameEditions.ById(id)?.Name ?? id).ToList();
+                var other = _installs.FirstOrDefault(i => GameEditions.ModRunsIn(foreign.Games, i.Edition));
+                ShowProblem(Problems.InstallFailed($"{foreign.Name} is made for {string.Join(" and ", madeFor)}, not {_install.Edition.Name}."
+                    + (other != null ? $" Pick {other.Edition.Short} at the top left, then drop it again." : "")), null);
+                return;
+            }
+
             var replacing = packages.Select(p => (Package: p, Installed: _mods.FirstOrDefault(m => m.Folder.Equals(p.Folder, StringComparison.OrdinalIgnoreCase))))
                 .Where(x => x.Installed != null).ToList();
             async Task Go()
             {
                 try
                 {
-                    await Task.Run(() => { foreach (var p in packages) ModInstaller.Install(p, _install.ModsDir); });
+                    var install = _install;
+                    await Task.Run(() => { foreach (var p in packages) ModInstaller.Install(p, install.ModsDir, install.Edition); });
                     var names = packages.Select(p => p.Name + (p.Version.Length > 0 ? " " + p.Version : "")).ToList();
                     LauncherLog.Write("Installed " + string.Join(", ", names));
                     ReloadMods();
@@ -818,6 +832,7 @@ namespace OpenFairway.Launcher
                 case "running": _checks.GameRunning = true; break;
                 case "checking": _updateCheck = UpdateCheck.Checking; break;
                 case "installed": _notice = "Installed Course Browser 1.0.0"; break;
+                case "games": _gameMenuOpen = true; break;
             }
             if (_options.Page != null)
             {

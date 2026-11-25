@@ -1,0 +1,20 @@
+[
+  {
+    "id": "pga2k25",
+    "name": "PGA TOUR 2K25",
+    "short": "2K25",
+    "steamAppId": "2385530",
+    "installDir": "PGA TOUR 2K25",
+    "executable": "PGATOUR2K25",
+    "officialHosts": ["tgc6pc.hb-studios.com"]
+  },
+  {
+    "id": "pga2k23",
+    "name": "PGA TOUR 2K23",
+    "short": "2K23",
+    "steamAppId": "1588010",
+    "installDir": "PGA TOUR 2K23",
+    "executable": "PGATOUR2K23",
+    "officialHosts": ["tgc5pc.hb-studios.com", "tgc4pc.hb-studios.com"]
+  }
+]

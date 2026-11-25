@@ -7,9 +7,14 @@
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <RootNamespace>OpenFairway.Core</RootNamespace>
-    <Version>0.5.0</Version>
+    <Version>0.6.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\OpenFairway.API\OpenFairway.API.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The games OpenFairway runs in, shared with the launcher and the installer. -->
+    <Compile Include="..\Shared\GameEdition.cs" Link="Shared\GameEdition.cs" />
+    <EmbeddedResource Include="..\Shared\games.json" LogicalName="OpenFairway.games.json" />
   </ItemGroup>
 </Project>

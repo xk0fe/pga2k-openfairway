@@ -65,6 +65,13 @@ something is under way (Starting, Updating). Each check under it is a small gree
 of the wordmark's mowed fairway with white lettering; UPDATE, a different action, is cream. A problem
 always says what happened, then what to do, and offers the next step as a button.
 
+The game sits with the buttons that act on it: a GAME tile above SETTINGS, slate like them, with a small caption
+and the game's name. It opens a list just under it: the games OpenFairway is in (the one shown has the green tick),
+a game Steam has without OpenFairway (ADD in cream), a supported game that is not installed (faint, NOT INSTALLED),
+and, under a line, "Scan Steam for games". Everything on the window (status, mods, settings, PLAY) is that game's.
+Settings opens with GAMES: "Find PGA TOUR games" names the supported games and has SCAN; under it each game's state
+is a word, not a button (a tick and ADDED, or NOT INSTALLED), except ADD for a game that can have OpenFairway added.
+
 ## Blueprint
 
 The launcher's scene is a drafting sheet: blueprint paper with a grid, a thin border and a title block. The turning

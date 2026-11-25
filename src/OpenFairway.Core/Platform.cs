@@ -1,8 +1,9 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
-using OpenFairway.Core.Game;
+using OpenFairway.Core.Games;
 using OpenFairway.Core.Il2Cpp;
 
 namespace OpenFairway.Core;
@@ -28,7 +29,16 @@ internal static unsafe class Platform
         _config = Config.Load(Path.Combine(HomeDir, "config.json"));
         Log.Detailed = string.Equals(_config.LogLevel, "detailed", StringComparison.OrdinalIgnoreCase);
 
-        if (!OfflineGuard.Enforce(_config.OfficialHosts))
+        var edition = CurrentGame.Detect(exe);
+        if (edition == null || CurrentGame.Profile == null)
+        {
+            Log.Error($"{Path.GetFileName(exe)} is not a game OpenFairway supports, so it stays inactive.");
+            return false;
+        }
+        Log.Info($"Game: {edition.Name}, build {CurrentGame.Build(GameDir)}");
+        GameRuntime.AssemblyNames = CurrentGame.Profile.AssemblyNames;
+
+        if (!OfflineGuard.Enforce(edition.OfficialHosts.Concat(_config.OfficialHosts).Distinct().ToArray()))
         {
             Log.Error("The game could not be taken offline, so OpenFairway is inactive for this session.");
             return false;
@@ -77,16 +87,14 @@ internal static unsafe class Platform
                 if (mainThread == null) return;
 
                 // From here on everything runs on the game's main thread; this thread ends after startup.
-                var config = _config;
                 mainThread.Update += () =>
                 {
                     if (mainThread.Frame == 1) Log.Info("Main-thread scheduling is live.");
-                    if (mainThread.Frame % 10 == 0) OfflineSwitches.Enforce(runtime, config);
                 };
-                var ui = new GameUi(runtime, mainThread);
+                var game = GameAccess.Start(runtime, mainThread, _config, CurrentGame.Profile!, CurrentGame.Build(GameDir));
                 var mods = new ModLoader(Path.Combine(HomeDir, "mods"));
-                mainThread.Post(() => mods.LoadAll(runtime, mainThread, ui));
-                if (config.DevConsole)
+                mainThread.Post(() => mods.LoadAll(runtime, mainThread, game.Ui, game.Info));
+                if (_config.DevConsole)
                 {
                     new DevConsole(runtime, mainThread).Start();
                     Log.Info("Developer console is on (local pipe only).");

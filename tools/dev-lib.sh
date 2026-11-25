@@ -1,4 +1,5 @@
-# source this: helpers for the developer console
+# source this: helpers for the developer console. OF_GAME_NAME picks the game whose log errs/loglines read.
+OF_GAME_NAME="${OF_GAME_NAME:-PGA TOUR 2K25}"
 OF_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mkdir -p "$OF_REPO/shots"
 c(){ python -I "$OF_REPO/tools/devcon.py" "$@" 2>/dev/null; }
@@ -9,7 +10,7 @@ shot(){ c "shot $(cygpath -m "$OF_REPO/shots")/$1.png" >/dev/null; sleep 1; }
 dismiss(){ local P TOP D i; P=$(first "@HB.Golf|MVC|PopupContainer"); for i in 1 2 3 4 5; do TOP=$(field $P topPopup); [ -z "$TOP" ] || [ "$TOP" = "null" ] && break; D=$(c "tree $TOP 3" | grep -m1 "onCancel = delegate" | awk '{print $4}'); [ -z "$D" ] && break; c "invoke $D" >/dev/null; sleep 2; done; }
 # click delegate of a tile/row model
 tileaction(){ local LD A; LD=$(c "tree $1 3" | grep -A1 "\[MVC.Bindings+OnClick\]" | tail -1 | awk '{print $1}'); A=$(field $LD data); c "peek $A 12" | grep -E "System\.Action(<.*>)?$" | head -1 | awk '{print $2, $NF}'; }
-alive(){ tasklist //FI "IMAGENAME eq PGATOUR2K25.exe" | tail -1 | cut -c1-16; }
+alive(){ tasklist | grep -oE "^PGATOUR2K2[0-9]\.exe" | head -1; }
 # current screen helpers
 screen(){ local SC; SC=$(first "@HB.Golf|MVC|ScreenContainer"); field $SC currentScreen; }
 stack(){ c "list $(c "statics @HB.Golf|MVC|ScreenContainer" | grep screenStack | awk '{print $(NF-1)}')" | grep -oE '"[^"]+"' | tr '\n' ' '; echo; }
@@ -21,8 +22,8 @@ popup(){ local P; P=$(first "@HB.Golf|MVC|PopupContainer"); field $P topPopup; }
 clickitem(){ local M; M=$(items | grep -F "\"$1\"" | head -1 | awk '{print $1}'); [ -z "$M" ] && { echo "no item $1"; return 1; }; click $M >/dev/null; }
 # first-launch helper: close the notice and return the HOME tab's tile models
 hometiles(){ local SC CS CTRL PANELS PM HT HM; SC=$(first "@HB.Golf|MVC|ScreenContainer"); CS=$(field $SC currentScreen); CTRL=$(field $CS controller); PANELS=$(field $CTRL panels); PM=$(field $PANELS _models); HT=$(c "arr $PM" | grep "\[0\]" | awk '{print $2}'); HM=$(field $HT _models); c "arr $HM" | grep -E "^\[" | awk '{print $2}'; }
-errs(){ tail -n +$1 "$USERPROFILE/AppData/LocalLow/2K/PGA TOUR 2K25/Player.log" | grep -E "https?://|Exception|Failed|rror:" | cut -c1-190 | sort | uniq -c | sort -rn | head -${2:-8}; }
-loglines(){ wc -l < "$USERPROFILE/AppData/LocalLow/2K/PGA TOUR 2K25/Player.log"; }
+errs(){ tail -n +$1 "$USERPROFILE/AppData/LocalLow/2K/$OF_GAME_NAME/Player.log" | grep -E "https?://|Exception|Failed|rror:" | cut -c1-190 | sort | uniq -c | sort -rn | head -${2:-8}; }
+loglines(){ wc -l < "$USERPROFILE/AppData/LocalLow/2K/$OF_GAME_NAME/Player.log"; }
 rclick(){ powershell -NoProfile -ExecutionPolicy Bypass -File "$OF_REPO/tools/dev-click.ps1" -X $1 -Y $2; }
 # popup helpers: list the open choice popup's rows, click row N (0-based)
 prows(){ local P TOP; P=$(first "@HB.Golf|MVC|PopupContainer"); TOP=$(field $P topPopup); [ -z "$TOP" ] || [ "$TOP" = "null" ] && return; c "tree $TOP 8" | grep -E "^ {16}[0-9A-F]+ MVC\.Model$" | awk '{print $1}'; }

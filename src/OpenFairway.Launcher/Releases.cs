@@ -34,7 +34,7 @@ namespace OpenFairway.Launcher
     /// and nothing about the player is sent (the requests carry the launcher's version, nothing else).</summary>
     internal static class GitHub
     {
-        public const string Repo = "xk0fe/pga2k25-openfairway";
+        public const string Repo = "xk0fe/pga2k-openfairway";
         public const string RepoUrl = "https://github.com/" + Repo;
         public const string ReleasesUrl = RepoUrl + "/releases";
         public const string IssuesUrl = RepoUrl + "/issues";
@@ -268,17 +268,21 @@ namespace OpenFairway.Launcher
 
         /// <summary>Hands over to a small script that waits for this launcher to close, runs the installer quietly,
         /// and starts the launcher again with the result.</summary>
-        public static void Apply(Install install, string setup, string version)
+        /// <summary><paramref name="home"/> is the install the launcher runs from (started again afterwards);
+        /// <paramref name="installs"/> are all the games OpenFairway is in, which are all updated.</summary>
+        public static void Apply(Install home, IEnumerable<Install> installs, string setup, string version)
         {
             var dir = WorkDir(version);
             var script = Path.Combine(dir, "apply.ps1");
             var log = Path.Combine(dir, "install.log");
             File.WriteAllText(script, ApplyScript, new UTF8Encoding(true));
-            var launcher = Path.Combine(install.Home, "OpenFairway.exe");
+            var launcher = Path.Combine(home.Home, "OpenFairway.exe");
+            // The installer takes several game folders as one argument, separated the way PATH is.
+            var games = string.Join(";", installs.Select(i => i.GameDir));
             var arguments = string.Join(" ",
                 "-NoProfile", "-ExecutionPolicy Bypass", "-WindowStyle Hidden", "-File", Quote(script),
                 "-LauncherPid", Process.GetCurrentProcess().Id.ToString(CultureInfo.InvariantCulture),
-                "-Setup", Quote(setup), "-GameDir", Quote(install.GameDir), "-Launcher", Quote(launcher),
+                "-Setup", Quote(setup), "-GameDir", Quote(games), "-Launcher", Quote(launcher),
                 "-Version", Quote(version), "-Log", Quote(log));
             Process.Start(new ProcessStartInfo("powershell.exe", arguments) { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden });
         }

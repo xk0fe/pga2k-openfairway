@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using OpenFairway.Core.Il2Cpp;
 
-namespace OpenFairway.Core.Game;
+namespace OpenFairway.Core.Games;
 
 /// <summary>
 /// The clock every on-screen animation runs on. It is real time, except while the game is being recorded frame by

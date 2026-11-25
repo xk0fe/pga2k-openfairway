@@ -1,7 +1,9 @@
 {
   "name": "Offline Main Menu",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "author": "OpenFairway",
-  "description": "Offline main menu in the game's own style: MyCAREER, MyPLAYER, Quick Play and Training on HOME, a banner and a key (F8, changed in the launcher's Settings) that open the mod manager, and only things that work offline.",
+  "games": ["pga2k25", "pga2k23"],
+  "openfairway": "0.6.0",
+  "description": "Offline main menu in the game's own style, with only what works offline: your golfer, local play and training on HOME, and a key (F8, changed in the launcher's Settings) that opens the mod manager anywhere in the game.",
   "icon": "Icon_Settings"
 }

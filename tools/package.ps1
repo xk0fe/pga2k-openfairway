@@ -2,7 +2,7 @@
 Builds OpenFairway and assembles the end-user package in dist\OpenFairway:
 
   Install OpenFairway.cmd / Uninstall OpenFairway.cmd
-  files\setup.ps1
+  files\setup.ps1, files\games.json (the supported games)
   files\payload\{core, dotnet, launcher, mods, winhttp.dll}
 
 The package bundles the .NET runtime and the Unity Doorstop loader, so users need nothing pre-installed.
@@ -56,6 +56,7 @@ foreach ($mod in $modProjects) {
     if (Test-Path $assets) { Copy-Item $assets $target -Recurse }
 }
 Copy-Item (Join-Path $repo 'installer\setup.ps1') (Join-Path $dist 'files')
+Copy-Item (Join-Path $repo 'src\Shared\games.json') (Join-Path $dist 'files')
 Copy-Item (Join-Path $repo 'installer\*.cmd') $dist
 Copy-Item (Join-Path $repo 'installer\README.txt') $dist
 Copy-Item (Join-Path $repo 'LICENSE') (Join-Path $dist 'LICENSE.txt')

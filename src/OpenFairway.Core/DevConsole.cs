@@ -28,7 +28,7 @@ namespace OpenFairway.Core;
 internal sealed unsafe class DevConsole(GameRuntime runtime, MainThread mainThread)
 {
     private const string PipeName = "openfairway-dev";
-    private Game.Recorder? _recorder;
+    private Games.Recorder? _recorder;
 
     public void Start() => new Thread(Serve) { IsBackground = true, Name = "OpenFairway.DevConsole" }.Start();
 
@@ -73,22 +73,22 @@ internal sealed unsafe class DevConsole(GameRuntime runtime, MainThread mainThre
         switch (a[0])
         {
             case "uiclick":
-                return Game.UiScreen.Top?.TestClick(float.Parse(a[1], System.Globalization.CultureInfo.InvariantCulture), float.Parse(a[2], System.Globalization.CultureInfo.InvariantCulture)) ?? "no custom screen open";
+                return Games.UiScreen.Top?.TestClick(float.Parse(a[1], System.Globalization.CultureInfo.InvariantCulture), float.Parse(a[2], System.Globalization.CultureInfo.InvariantCulture)) ?? "no custom screen open";
             case "action":
                 return (a.Length > 2 ? ModLoader.Current?.Invoke(a[1], a[2]) : ModLoader.Current?.Invoke(a[1])) == true ? "ok" : "no such action";
             case "uipad":
-                Game.UiScreen.TestPad = a[1] == "off" ? null : int.Parse(a[1]);
+                Games.UiScreen.TestPad = a[1] == "off" ? null : int.Parse(a[1]);
                 return "ok";
             case "uihover":
-                return Game.UiScreen.Top?.TestHover(float.Parse(a[1], System.Globalization.CultureInfo.InvariantCulture), float.Parse(a[2], System.Globalization.CultureInfo.InvariantCulture)) ?? "no custom screen open";
+                return Games.UiScreen.Top?.TestHover(float.Parse(a[1], System.Globalization.CultureInfo.InvariantCulture), float.Parse(a[2], System.Globalization.CultureInfo.InvariantCulture)) ?? "no custom screen open";
             case "uiback":
-                return Game.UiScreen.Top?.TestBack() ?? "no custom screen open";
+                return Games.UiScreen.Top?.TestBack() ?? "no custom screen open";
             case "uiclose":
-                return "closed " + Game.UiToolkit.CloseAll();
+                return "closed " + Games.UiToolkit.CloseAll();
             case "record":
             {
                 // record <folder> [fps] [superSize] | record stop | record status
-                _recorder ??= new Game.Recorder(runtime, mainThread);
+                _recorder ??= new Games.Recorder(runtime, mainThread);
                 if (a.Length < 2 || a[1] == "status") return _recorder.Status();
                 if (a[1] == "stop") return _recorder.Stop();
                 return _recorder.Start(a[1], a.Length > 2 ? int.Parse(a[2]) : 30, a.Length > 3 ? int.Parse(a[3]) : 1);

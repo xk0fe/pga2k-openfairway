@@ -1,6 +1,8 @@
 <# Developer helper: a mouse swing for the game (pull the mouse back, then push it forward), sent as real
    relative mouse movement. Refuses unless the game window is in the foreground. #>
 param([int]$Back = 400, [int]$Forward = 700, [int]$BackMs = 500, [int]$ForwardMs = 220, [switch]$Hold)
+$NoGameFolder = $true
+. (Join-Path $PSScriptRoot 'game-path.ps1')
 Add-Type @"
 using System; using System.Runtime.InteropServices;
 public static class DevSwing {
@@ -11,7 +13,7 @@ public static class DevSwing {
   [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
 }
 "@
-$p = Get-Process PGATOUR2K25 -ErrorAction Stop; $h = $p.MainWindowHandle
+$p = Get-OpenFairwayGameProcess; $h = $p.MainWindowHandle
 for ($try = 0; $try -lt 3 -and [DevSwing]::GetForegroundWindow() -ne $h; $try++) {
     [DevSwing]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [DevSwing]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
     [void][DevSwing]::ShowWindow($h, 9); [void][DevSwing]::SetForegroundWindow($h); Start-Sleep -Milliseconds 400

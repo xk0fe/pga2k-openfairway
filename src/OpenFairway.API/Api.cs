@@ -15,6 +15,10 @@ public interface IFairwayMod
 /// <summary>Everything the platform gives a mod, passed to <see cref="IFairwayMod.OnLoad"/>.</summary>
 public interface IModContext
 {
+    /// <summary>The game this session runs in. A mod made for several games (mod.json "games") checks it where
+    /// they differ.</summary>
+    GameInfo Game { get; }
+
     ILog Log { get; }
     IGameRuntime Runtime { get; }
 
@@ -33,11 +37,31 @@ public interface IModContext
     /// <summary>The folder this mod is installed in (its DLL, mod.json and assets).</summary>
     string ModDirectory { get; }
 
+    /// <summary>Full path of one of the mod's files, by its path inside the mod: the copy made for the game that is
+    /// running (in a folder named after it, such as pga2k23\), else the one in the "shared" folder, else the one at the
+    /// mod's root. A mod for several games keeps what they share once, in "shared". Returns the root path when no
+    /// copy exists.</summary>
+    string ModFile(string relativePath);
+
     /// <summary>Version of the OpenFairway platform, e.g. "0.4.0".</summary>
     string PlatformVersion { get; }
 
     /// <summary>Per-mod writable folder (config, saves). Created on demand.</summary>
     string DataDirectory { get; }
+}
+
+/// <summary>The game OpenFairway is running in.</summary>
+public sealed class GameInfo
+{
+    /// <summary>"pga2k25" or "pga2k23": the names mod.json's "games" list uses.</summary>
+    public required string Id { get; init; }
+
+    /// <summary>The game's name, e.g. "PGA TOUR 2K25".</summary>
+    public required string Name { get; init; }
+
+    /// <summary>The installed build: the game's Unity build id, or the size and date of its code where it has none.
+    /// It changes with every game update.</summary>
+    public required string Build { get; init; }
 }
 
 /// <summary>Native-looking UI built on the game's own menu system. Everything here is a rule that the platform
@@ -73,7 +97,8 @@ public interface IGameUi
     /// <summary>Creates a full custom screen that you draw yourself, in the game's fonts. Open it from the main menu.</summary>
     IUiScreen CreateScreen();
 
-    /// <summary>The courses that ship with the game.</summary>
+    /// <summary>The courses that ship with the game. In PGA TOUR 2K23 the game reads its list a moment after the main
+    /// menu first shows; until then the list is empty.</summary>
     ICourseCatalog Courses { get; }
 }
 
@@ -244,13 +269,17 @@ public interface IMainMenu
     /// <summary>Which main-menu tabs to show, in order.</summary>
     void SetTabs(params MenuTab[] tabs);
 
-    /// <summary>Replaces a tab's tiles. Slots with fixed artwork are turned into plain text tiles.</summary>
+    /// <summary>Replaces a tab's tiles. Slots with fixed artwork are turned into plain text tiles. PGA TOUR 2K23 shows
+    /// four rows to a tab; more scroll out of sight.</summary>
     void SetTiles(MenuTab tab, params MenuTile[] tiles);
 
-    /// <summary>Removes the "Go Online" prompt and its action from the menu banner.</summary>
+    /// <summary>Removes the "Go Online" prompt and its action from the menu banner (in PGA TOUR 2K23, the GO ONLINE
+    /// rows from every tab a mod has not laid out itself).</summary>
     void RemoveGoOnline();
 
-    /// <summary>Restyles the large panel above the tiles: your artwork, title, subtitle and click action.</summary>
+    /// <summary>Restyles the large panel above the tiles: your artwork, title, subtitle and click action. PGA TOUR
+    /// 2K23 has no such panel: there the logo (<see cref="MenuBanner.LogoPath"/>) takes the place of the Home tab's
+    /// large title, and the rest is not shown.</summary>
     void SetBanner(MenuBanner banner);
 
     /// <summary>Opens one of the game's own main-menu features, as if its tile had been clicked. False if it is not available.</summary>
@@ -317,11 +346,14 @@ public interface IModManager
     void SetEnabled(ModEntry mod, bool enabled);
 }
 
-/// <summary>The main menu's tabs.</summary>
+/// <summary>The main menu's tabs. In PGA TOUR 2K23, Home is the tab the menu opens on (MyPLAYER), Play is CASUAL,
+/// Compete is COMPETITIVE and Design is DESIGNER.</summary>
 public enum MenuTab { Home = 0, Play = 1, Compete = 2, Design = 3 }
 
-/// <summary>Tiles the game already has and that work offline.</summary>
-public enum GameTile { QuickPlay, Training, NewCourse, UnpublishedCourses, Career }
+/// <summary>Tiles the game already has and that work offline. Not every game has every one: QuickPlay is LOCAL
+/// MATCH in PGA TOUR 2K23, Career is only in 2K25's menu and MyPlayer only in 2K23's. Topgolf is the local Topgolf
+/// match (LOCAL MATCH on the TOPGOLF tab). A tile the game does not have is left out.</summary>
+public enum GameTile { QuickPlay, Training, NewCourse, UnpublishedCourses, Career, MyPlayer, Topgolf }
 
 /// <summary>A tile on a main-menu tab: your own (label and action), or one of the game's via <see cref="Game"/>.</summary>
 public sealed class MenuTile

@@ -1,6 +1,42 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 - 2026-11-25
+
+### PGA TOUR 2K23
+- OpenFairway runs in PGA TOUR 2K23 as well as 2K25. The installer sets it up in every supported game Steam has, each
+  with its own mods. In the launcher the GAME button above SETTINGS picks the game (remembered for next time); its list
+  also offers a game Steam has without OpenFairway, and a scan of the Steam libraries.
+- In 2K23: the offline guard (its servers are tgc5pc and tgc4pc.hb-studios.com), the mod loader, the developer console
+  and the type dump; custom screens and the in-game mod manager; Skip Intro Videos.
+- The offline main menu in 2K23, four rows to a tab as the game draws them: HOME with MyPLAYER, MyCAREER and MODS under
+  the wordmark, CASUAL with LOCAL MATCH, TOPGOLF and TRAINING, DESIGNER with NEW COURSE and MY COURSES, and the offline
+  alerts replaced. The game's own MyPLAYER, local matches (with its course picker) and Topgolf work offline as they are.
+- **Offline Career** 0.3.0 runs MyCAREER offline in 2K23 too: Q-School to the PGA TOUR, rounds, results and seasons,
+  saved on this PC. The game keeps its own golfer there, so the mod leaves MyPLAYER alone, and it tells the game it is
+  online only to get into the career, so finished rounds are not sent anywhere and no network errors show.
+- The course list (`ctx.Ui.Courses`) in 2K23 comes from the game's own offline storage, the way its course picker
+  gets it, a moment after the main menu first shows. `OpenMatch` works there too, with the round length chosen.
+- Not in 2K23 yet: The Climb and Offline Progression.
+- Settings, GAMES: "Find PGA TOUR games" says which games OpenFairway supports and scans the Steam libraries for them;
+  under it, how each game stands. ADD sets OpenFairway up in a game installed later, from the copy the launcher runs
+  from, with the mods made for that game (the installer now keeps a copy of every bundled mod for this). Updating
+  from 0.5.0 in the launcher keeps 2K25 up to date; ADD (or the installer) then adds 2K23.
+
+### Platform
+- The game layer: everything that knows a game's own code is in `src/OpenFairway.Core/Games`, and what differs between
+  the games is one profile each (`GameProfile.cs`): where their code is, their offline options, their menu layout,
+  how they start a match. The platform, the mod loader and the mods reach the game only through it.
+- `mod.json` `"games"` lists the games a mod is made for (`pga2k25`, `pga2k23`); a mod without it is taken to be for
+  2K25. A mod for another game is left out and not listed. `ctx.Game` says which game is running.
+- A mod can support several games from one folder: a folder per game named after it (`pga2k25`, `pga2k23`) with
+  that game's DLL and files, and `shared` for what they share, so assets and libraries are not kept twice. The
+  platform loads the running game's DLL and finds libraries in `shared`; `ctx.ModFile("assets/x.png")` finds a file
+  the same way. Installing such a mod into a game copies only that game's folder and the shared one. A mod's games
+  come from its game folders when mod.json does not list them.
+- Classes asked for by 2K25's assembly names (`HB.Golf`, `HB.Golf.Plugins`) are found in 2K23 too, where the game's
+  code is `Assembly-CSharp`.
+- `GameTile.MyPlayer` (2K23's own MyPLAYER row) and `GameTile.Topgolf` (the local Topgolf match).
+- Looking up a method of a class that was not found no longer reaches the game's runtime (which would crash it).
 
 ### Launcher
 - The scene is a blueprint: the turning scan of the hole dissolves, along a ragged edge traced in ink, into a plan of
@@ -10,6 +46,23 @@
 - The hole is drawn live in 3D on the graphics card (OpenGL 3.3), a fresh picture every display refresh, so the turn
   is perfectly smooth on any display. Without OpenGL the launcher shows a still. The launcher is smaller for it: the
   scene it draws is 2.3 MB, where the turning pictures were 9 MB.
+- The line under the name says what the launcher is: a mod manager and offline launcher for PGA TOUR 2K.
+- The project is now at github.com/xk0fe/pga2k-openfairway, and the launcher looks for updates and release notes
+  there. The old address forwards, so 0.5.0 still finds this update.
+- The installer stops before it changes anything while the OpenFairway launcher is open from a game it would update.
+  Before, it could leave that game half installed.
+
+### Mods
+- **Offline Main Menu** 0.6.0 lays out 2K23's menu as well as 2K25's.
+- **Offline Career** 0.3.0 runs in 2K23 too.
+- **Skip Intro Videos** 1.1.0 runs in 2K23 too.
+- Offline Main Menu, Offline Career and the Course Browser example need OpenFairway 0.6.0 (`ctx.Game`,
+  `ctx.ModFile`). Offline Progression and The Climb stay 2K25 only.
+
+### Docs
+- [Adding a game of the series](docs/adding-a-game.md): the game list, the game's profile, finding its code with
+  the type dump and the developer console, the mods, and what to check before it ships.
+- The README lists what works in each game in its own table.
 
 ## 0.5.0 - 2026-11-24
 

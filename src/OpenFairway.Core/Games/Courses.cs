@@ -5,19 +5,90 @@ using System.Text.Json;
 using OpenFairway.API;
 using OpenFairway.Core.Il2Cpp;
 
-namespace OpenFairway.Core.Game;
+namespace OpenFairway.Core.Games;
 
 /// <summary>
 /// The courses that ship with the game, read at run time from the game's own "static storage" bundle (the data it
 /// uses when it is offline). Nothing is copied out of the game: names, pars and preview photos are read from the
 /// installed game each session, and a match is started through the game's own local match screen.
 /// </summary>
-internal sealed unsafe class Courses : ICourseCatalog
+internal sealed unsafe partial class Courses : ICourseCatalog
 {
     private const string MetadataFolder = "/coursemetadata/", ThumbnailFolder = "/coursethumbnail/";
+    /// <summary>
+    /// PGA TOUR 2K23's match screen resets its course overrides while it prepares itself, so the holes are set once it
+    /// is shown: on the overrides the round is played from, in the screen's own round-length setting (so its settings
+    /// popup agrees), and on the line that names the round length, in the game's own words for it.
+    /// </summary>
+    private void SetHolesOnceShown(IntPtr match, IntPtr overridesClass, int holes)
+    {
+        var deadline = DateTime.UtcNow + ScreenShowLimit;
+        void Poll()
+        {
+            try
+            {
+                if (DateTime.UtcNow > deadline)
+                {
+                    _mainThread.Update -= Poll;
+                    Log.Warn("The match screen did not show in time; it keeps the game's own round length.");
+                    return;
+                }
+                if (_rt.GetField<byte>(match, _rt.GetClass(match), "<isShown>k__BackingField") == 0) return;
+                _mainThread.Update -= Poll;
+                SetHoles(match, overridesClass, holes);
+            }
+            catch (Exception e)
+            {
+                _mainThread.Update -= Poll;
+                Log.Warn("The round length could not be set: " + e.Message);
+            }
+        }
+        _mainThread.Update += Poll;
+    }
+
+    private static readonly TimeSpan ScreenShowLimit = TimeSpan.FromSeconds(20);
+
+    /// <summary>The most holes a course has; the game's round length needs it alongside which nine.</summary>
+    private const int FullRoundHoles = 18;
+
+    private void SetHoles(IntPtr match, IntPtr overridesClass, int holes)
+    {
+        var overrides = _rt.Invoke(_rt.FindMethod(_rt.GetClass(match), "get_overrides", 0), match);
+        if (overrides == IntPtr.Zero) return;
+        var before = *(int*)(_rt.Invoke(_rt.FindMethod(overridesClass, "get_HolesToPlay", 0), overrides) + ObjectHeader);
+        if (before == holes) return;
+        var allHoles = FullRoundHoles;
+        _rt.Invoke(_rt.FindMethod(overridesClass, "SetHolesToPlay(Localized.HolesToPlay,System.Int32)"), overrides, (IntPtr)(&holes), (IntPtr)(&allHoles));
+
+        // The screen's own round-length setting: LobbySettings.holesToPlay keeps its value in a RefValue.
+        var lobby = _rt.GetField<IntPtr>(match, _rt.GetClass(match), "lobbySettings");
+        var setting = lobby == IntPtr.Zero ? IntPtr.Zero : _rt.GetField<IntPtr>(lobby, _rt.GetClass(lobby), "holesToPlay");
+        if (setting == IntPtr.Zero) return;
+        var value = _rt.GetField<IntPtr>(setting, _rt.GetClass(setting), "dataCache");
+        var setValue = value == IntPtr.Zero ? IntPtr.Zero : _rt.FindMethod(_rt.GetClass(value), "set_val", 1);
+        if (setValue != IntPtr.Zero) _rt.Invoke(setValue, value, (IntPtr)(&holes));
+
+        // The line on screen was written for the old length; the setting's formatter gives both in the game's words.
+        var formatter = _rt.GetField<IntPtr>(setting, _rt.GetClass(setting), "formatter");
+        var format = formatter == IntPtr.Zero ? IntPtr.Zero : _rt.FindMethod(_rt.GetClass(formatter), "Invoke", 1);
+        if (format == IntPtr.Zero) return;
+        string? Words(int length) => _rt.ReadString(*(IntPtr*)(_rt.Invoke(format, formatter, (IntPtr)(&length)) + ObjectHeader + StringSourceLocalized));
+        var (shown, wanted) = (Words(before), Words(holes));
+        if (string.IsNullOrEmpty(shown) || string.IsNullOrEmpty(wanted)) return;
+        var textClass = _rt.FindClass("UnityEngine.UI", "UnityEngine.UI", "Text");
+        var getText = _rt.FindMethod(textClass, "get_text", 0);
+        var setText = _rt.FindMethod(textClass, "set_text", 1);
+        foreach (var text in _rt.FindObjectsOfType(_rt.FindClass("HB.Golf", "MVC", "MVCText")))
+            if (_rt.ReadString(_rt.Invoke(getText, text)) == shown) _rt.Invoke(setText, text, _rt.NewString(wanted));
+    }
+
+    // A boxed value starts after the object header; MVC.StringSource is { task, localized, inspectorText }.
+    private const int ObjectHeader = 16, StringSourceLocalized = 8;
 
     private readonly GameRuntime _rt;
     private readonly UiToolkit _kit;
+    private readonly GameProfile _profile;
+    private readonly MainThread _mainThread;
     private readonly Func<bool> _mainMenuReady;
     private readonly Dictionary<string, string> _thumbnailAssets = new();
     private readonly Dictionary<string, UiImage?> _thumbnails = new();
@@ -25,14 +96,16 @@ internal sealed unsafe class Courses : ICourseCatalog
     private IntPtr _bundle, _loadAsset, _getText, _textAssetType;
     private readonly List<IntPtr> _keepAlive = new();
 
-    public Courses(GameRuntime runtime, UiToolkit kit, Func<bool> mainMenuReady)
+    public Courses(GameRuntime runtime, UiToolkit kit, GameProfile profile, MainThread mainThread, Func<bool> mainMenuReady)
     {
         _rt = runtime;
         _kit = kit;
+        _profile = profile;
+        _mainThread = mainThread;
         _mainMenuReady = mainMenuReady;
     }
 
-    public IReadOnlyList<CourseInfo> All => _all ??= Load();
+    public IReadOnlyList<CourseInfo> All => _profile.Courses == CourseSource.BundleNames ? _all ??= Load() : ViewCourses();
 
     public CourseInfo? Find(string courseId) => All.FirstOrDefault(c => c.Id == courseId);
 
@@ -194,16 +267,24 @@ internal sealed unsafe class Courses : ICourseCatalog
         var screens = _rt.FindClass("HB.Golf", "MVC", "ScreenContainer");
         if (overridesClass == IntPtr.Zero || matchClass == IntPtr.Zero || groupClass == IntPtr.Zero || screens == IntPtr.Zero) return;
 
-        var overrides = _rt.NewObject(overridesClass, ".ctor()");
-        _rt.Invoke(_rt.FindMethod(overridesClass, "SetCourse", 1), overrides, metadata);
-        var holesToPlay = (int)holes;
-        var noLimit = stackalloc byte[8]; // an empty Nullable<int>
-        for (var i = 0; i < 8; i++) noLimit[i] = 0;
-        _rt.Invoke(_rt.FindMethod(overridesClass, "SetHolesToPlay", 2), overrides, (IntPtr)(&holesToPlay), (IntPtr)noLimit);
-
         var group = _rt.Invoke(_rt.FindMethod(groupClass, "Get", 0), IntPtr.Zero);
         byte isPostGame = 0;
-        var match = _rt.NewObject(matchClass, ".ctor(MVC.GolfGroup,CourseMetadata,System.Boolean,CourseOverrides)", group, metadata, (IntPtr)(&isPostGame), overrides);
+        var holesToPlay = (int)holes; // MatchHoles has the values of the game's own Localized.HolesToPlay
+        IntPtr match;
+        if (_profile.MatchHoles == MatchHolesSetup.OverridesPassedIn)
+        {
+            var overrides = _rt.NewObject(overridesClass, ".ctor()");
+            _rt.Invoke(_rt.FindMethod(overridesClass, "SetCourse", 1), overrides, metadata);
+            var noLimit = stackalloc byte[8]; // an empty Nullable<int>
+            for (var i = 0; i < 8; i++) noLimit[i] = 0;
+            _rt.Invoke(_rt.FindMethod(overridesClass, "SetHolesToPlay", 2), overrides, (IntPtr)(&holesToPlay), (IntPtr)noLimit);
+            match = _rt.NewObject(matchClass, ".ctor(MVC.GolfGroup,CourseMetadata,System.Boolean,CourseOverrides)", group, metadata, (IntPtr)(&isPostGame), overrides);
+        }
+        else
+        {
+            match = _rt.NewObject(matchClass, ".ctor(MVC.GolfGroup,CourseMetadata,System.Boolean)", group, metadata, (IntPtr)(&isPostGame));
+            SetHolesOnceShown(match, overridesClass, holesToPlay);
+        }
         _rt.Pin(match);
         var show = _rt.FindMethod(screens, "Show(System.Func<MVC.BaseController>)");
         _rt.Invoke(show, IntPtr.Zero, _rt.CreateFunc(_rt.GetParameterClass(show, 0), () => match));

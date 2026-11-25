@@ -64,6 +64,7 @@ namespace OpenFairway.Launcher
         {
             CommitEditor(true);
             _capturingKey = false;
+            _gameMenuOpen = false;
             if (page == _page) return;
             var wasClosed = _page == Page.None;
             _page = page;
@@ -403,7 +404,7 @@ namespace OpenFairway.Launcher
 
         // ---- SETTINGS --------------------------------------------------------------------------------------------------
 
-        private enum Control { Switch, Choice, KeyCap, Button, Text }
+        private enum Control { Switch, Choice, KeyCap, Button, Text, Status }
 
         private sealed class Setting
         {
@@ -419,7 +420,8 @@ namespace OpenFairway.Launcher
         private List<Setting> BuildSettings()
         {
             var menuKey = MenuKey.Available(_install);
-            return new List<Setting>
+            var settings = GameSettings();
+            settings.AddRange(new List<Setting>
             {
                 new Setting
                 {
@@ -487,7 +489,44 @@ namespace OpenFairway.Launcher
                         _config.DumpTypes = DumpChoices[(i + 1) % DumpChoices.Length].Value;
                     }),
                 },
+            });
+            return settings;
+        }
+
+        private const float StatusWidth = 120f;
+
+        /// <summary>GAMES: which games OpenFairway works with and a scan of the Steam libraries for them, then how each
+        /// one stands. The game to play is picked beside PLAY; here a game Steam has without OpenFairway can have it
+        /// added.</summary>
+        private List<Setting> GameSettings()
+        {
+            var rows = new List<Setting>
+            {
+                new Setting
+                {
+                    Section = "GAMES", Key = "scan", Name = "Find PGA TOUR games", Control = Control.Button, Value = "SCAN", Enabled = !_addingGame,
+                    Description = $"OpenFairway works with {JoinAnd(GameEditions.All.Select(e => e.Name).ToList())} from Steam. "
+                        + "SCAN looks through your Steam libraries for them again, for a game installed or moved since the launcher opened.",
+                    Click = () => { if (!_preview) ScanGames(); },
+                },
             };
+            foreach (var game in _scan)
+            {
+                var install = game.Install == null ? null : _installs.FirstOrDefault(i => SameInstall(i, game.Install));
+                var canAdd = install == null && game.GameDir != null;
+                rows.Add(new Setting
+                {
+                    Section = "GAMES", Key = "game-status:" + game.Edition.Id, Name = game.Edition.Name,
+                    Control = canAdd ? Control.Button : Control.Status, On = install != null,
+                    Value = install != null ? "ADDED" : canAdd ? "ADD" : "NOT INSTALLED",
+                    Enabled = !canAdd || (!_addingGame && _phase == Phase.Idle && !_updating),
+                    Description = install != null ? "OpenFairway is set up in it, in " + game.GameDir
+                        : canAdd ? "In your Steam library without OpenFairway. ADD sets it up there with the mods made for it; the game's own files are not changed."
+                        : "Not in your Steam libraries. Install it through Steam, then SCAN.",
+                    Click = canAdd ? () => { if (!_preview) OfferAddGame(game); } : (Action?)null,
+                });
+            }
+            return rows;
         }
 
         private void Save(Action change)
@@ -524,7 +563,8 @@ namespace OpenFairway.Launcher
                         y += 30;
                         g.DrawLine(line, x, y - 0.5f, x + width, y - 0.5f);
                     }
-                    var controlW = s.Control == Control.Switch ? 44f : s.Control == Control.KeyCap ? 92f : s.Control == Control.Choice ? 190f : s.Control == Control.Button ? 90f : 0f;
+                    var controlW = s.Control == Control.Switch ? 44f : s.Control == Control.KeyCap ? 92f : s.Control == Control.Choice ? 190f
+                        : s.Control == Control.Button ? 90f : s.Control == Control.Status ? StatusWidth : 0f;
                     var textW = width - (controlW > 0 ? controlW + 28 : 0);
                     var lines = Gfx.LineCount(s.Description, _small, textW, 3);
                     var h = 42 + lines * 18 + (s.Control == Control.Text ? 42 : 0) + 12;
@@ -559,6 +599,14 @@ namespace OpenFairway.Launcher
                     Gfx.Fill(g, b, 4, Theme.Alpha(Theme.RaisedTop, 0.6f * hover));
                     Gfx.Stroke(g, b, 4, Theme.Mix(Theme.Line, Theme.Faint, hover));
                     Gfx.TextFit(g, s.Value, _pill, s.Enabled ? Theme.Text : Theme.Faint, new RectangleF(b.X, b.Y + 7, b.Width, 16), StringAlignment.Center);
+                    break;
+                }
+                case Control.Status:
+                {
+                    // A state, not a button: a tick when it is good news, the word alone when it is not.
+                    var w = Gfx.TitleWidth(s.Value, _badge, LabelTracking * 0.5f);
+                    if (s.On) Gfx.Check(g, r.Right - w - 16, cy + 14, 7.5f, Theme.Green, Theme.Bg);
+                    Gfx.Title(g, s.Value, _badge, s.On ? Theme.Text : Theme.Faint, r.Right - w, cy + 8, LabelTracking * 0.5f);
                     break;
                 }
                 case Control.Choice:

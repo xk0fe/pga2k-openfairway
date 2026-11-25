@@ -33,7 +33,51 @@ public sealed class OfflineMenu : IFairwayMod
         if (_menuKey != 0) ctx.MainThread.Update += PollMenuKey;
         ctx.Actions.Register("ui.back", () => ctx.Ui.BackOut());
         var ui = ctx.Ui;
+        if (ctx.Game.Id == Pga2K23) LayOutRows(ui);
+        else LayOutTiles(ui);
 
+        ui.ReplaceText("OFFLINE*Reconnect*", "OPENFAIRWAY - Offline mode");
+
+        ui.ReplacePopup("NoConnectionMsg1", "OPENFAIRWAY",
+            "You are playing with the OpenFairway mod. The game runs in offline mode: online features, XP and rewards are switched off.");
+        ui.ReplacePopup("OfflineModeBootAlert", null, null);
+    }
+
+    private const string Pga2K23 = "pga2k23";
+
+    private string Asset(string name) => _ctx.ModFile(Path.Combine("assets", name));
+
+    /// <summary>PGA TOUR 2K23: tabs of rows, four to a tab. HOME (the tab the menu opens on) has the golfer, the career
+    /// and the mod manager under the wordmark; CASUAL has every way to play a round offline.</summary>
+    private void LayOutRows(IGameUi ui)
+    {
+        ui.MainMenu.SetTabs(MenuTab.Home, MenuTab.Play, MenuTab.Design);
+        ui.MainMenu.SetTiles(MenuTab.Home,
+            MenuTile.Game(GameTile.MyPlayer),
+            new MenuTile
+            {
+                Label = "MyCAREER",
+                Description = "Your PGA TOUR career, from Q-School up, saved on this PC.",
+                OnClick = () => OpenFeature("career.open", "MyCAREER", "Offline Career"),
+            },
+            new MenuTile
+            {
+                Label = "MODS",
+                Description = "Switch mods on and off. Its key opens it anywhere in the game.",
+                OnClick = () => _mods.Open(),
+            });
+        ui.MainMenu.SetTiles(MenuTab.Play,
+            MenuTile.Game(GameTile.QuickPlay),
+            new MenuTile { Existing = GameTile.Topgolf, Label = "TOPGOLF", Description = "Ten shots each at Topgolf, solo or with up to three guests." },
+            MenuTile.Game(GameTile.Training));
+        ui.MainMenu.SetTiles(MenuTab.Design, MenuTile.Game(GameTile.NewCourse),
+            new MenuTile { Existing = GameTile.UnpublishedCourses, Label = "MY COURSES" });
+        ui.MainMenu.SetBanner(new MenuBanner { Title = "OPENFAIRWAY", LogoPath = Asset("wordmark-banner.png") });
+    }
+
+    /// <summary>PGA TOUR 2K25: tiles under a banner.</summary>
+    private void LayOutTiles(IGameUi ui)
+    {
         ui.MainMenu.SetTabs(MenuTab.Home, MenuTab.Design);
         // HOME fills top-left, bottom-left, top-right, bottom-right.
         ui.MainMenu.SetTiles(MenuTab.Home,
@@ -59,19 +103,13 @@ public sealed class OfflineMenu : IFairwayMod
         ui.MainMenu.SetBanner(new MenuBanner
         {
             Title = "OPENFAIRWAY",
-            Subtitle = "OFFLINE MODS  ·  v" + ctx.PlatformVersion,
-            LogoPath = System.IO.Path.Combine(ctx.ModDirectory, "assets", "wordmark-banner.png"),
-            ImagePath = System.IO.Path.Combine(ctx.ModDirectory, "assets", "banner.png"),
+            Subtitle = "OFFLINE MODS  ·  v" + _ctx.PlatformVersion,
+            LogoPath = Asset("wordmark-banner.png"),
+            ImagePath = Asset("banner.png"),
             CoursePhoto = true,
             CalloutLabel = "MODS",
             OnClick = () => _mods.Open(),
         });
-
-        ui.ReplaceText("OFFLINE*Reconnect*", "OPENFAIRWAY - Offline mode");
-
-        ui.ReplacePopup("NoConnectionMsg1", "OPENFAIRWAY",
-            "You are playing with the OpenFairway mod. The game runs in offline mode: online features, XP and rewards are switched off.");
-        ui.ReplacePopup("OfflineModeBootAlert", null, null);
     }
 
     private static int ReadMenuKey(string dataDir)

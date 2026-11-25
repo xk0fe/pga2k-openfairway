@@ -1,11 +1,12 @@
 <p align="center"><img src="docs/images/wordmark.png" alt="OpenFairway" width="420"></p>
 
-<p align="center"><b>Offline play and mods for PGA TOUR 2K25</b><br>
-MyPLAYER, MyCAREER, Quick Play and every course without 2K's servers, plus a C# modding platform and a new career mode.</p>
+<p align="center"><b>A mod manager and offline launcher for PGA TOUR 2K</b><br>
+Play PGA TOUR 2K25 and 2K23 without 2K's servers: MyPLAYER, MyCAREER and every course, plus a C# modding platform and
+a new career mode.</p>
 
 <p align="center">
-<a href="https://github.com/xk0fe/pga2k25-openfairway/releases/latest">Download</a> ·
-<a href="https://xk0fe.github.io/pga2k25-openfairway/">Modding guide and API</a> ·
+<a href="https://github.com/xk0fe/pga2k-openfairway/releases/latest">Download</a> ·
+<a href="https://xk0fe.github.io/pga2k-openfairway/">Modding guide and API</a> ·
 <a href="examples">Example mods</a> ·
 <a href="CHANGELOG.md">Changelog</a>
 </p>
@@ -28,11 +29,36 @@ PGA TOUR. It runs inside your own copy of the game, offline only, and unlocks no
 | ![The Climb](docs/images/the-climb.jpg) | ![Leaderboard](docs/images/leaderboard.jpg) |
 | **The Climb.** A new story career with management: from club amateur with a day job to the World Tour. | **Play the big rounds yourself.** Events are simulated from your golfer; you play the final round. |
 
+The pictures are from PGA TOUR 2K25.
+
+## Games
+
+OpenFairway runs in two games of the series. The installer sets it up in each one Steam has, each with its own mods,
+and the launcher's GAME button picks the one to play. Settings can add a game you install later.
+
+| | PGA TOUR 2K25 | PGA TOUR 2K23 |
+|---|---|---|
+| Tested with Steam build | 25894776 | 20239775 |
+| Offline main menu and mod manager (F8) | Yes | Yes |
+| Intro skip | Yes | Yes |
+| MyPLAYER | Yes, with Offline Career | Yes |
+| MyCAREER, saved on this PC | Yes | Yes, Q-School to the PGA TOUR |
+| Local rounds on every course | Yes, Quick Play | Yes, Local Match |
+| Training | Yes | Yes |
+| Topgolf | Not yet | Yes |
+| Course designer | Yes | Yes |
+| Offline Progression | Yes | Not yet |
+| The Climb | Yes | Not yet |
+
+Other games of the series come from the same HB Studios code. Supporting one is mostly an entry in the game list and
+a profile of where its code differs: see [Adding a game of the series](docs/adding-a-game.md).
+
 ## Install
 
-1. Download `OpenFairway-<version>.zip` from [Releases](https://github.com/xk0fe/pga2k25-openfairway/releases/latest) and unzip it anywhere.
-2. Double-click **Install OpenFairway.cmd**. It finds the game through Steam by itself.
-3. Open **OpenFairway** from your desktop and press **Play**. Mods, Settings and What's new are beside it.
+1. Download `OpenFairway-<version>.zip` from [Releases](https://github.com/xk0fe/pga2k-openfairway/releases/latest) and unzip it anywhere.
+2. Double-click **Install OpenFairway.cmd**. It finds the games through Steam by itself and installs into each one.
+3. Open **OpenFairway** from your desktop and press **Play**. Mods, Settings and What's new are beside it. With both
+   games installed, pick one with **GAME**, just above Settings.
 
 Nothing to pre-install, no firewall rule, no admin rights.
 
@@ -54,7 +80,10 @@ Nothing to pre-install, no firewall rule, no admin rights.
 - **Updates.** When a newer release is on GitHub, Play becomes Update. The download is checked against the SHA-256
   GitHub lists for it and installed by the release's own installer; your mods, settings and saves stay.
 - **Mods.** Switch mods on and off, open one for its full description, what it needs and how it did last time, or
-  drop a mod's `.zip` on the window to install it.
+  drop a mod's `.zip` on the window to install it. Each game has its own mods, made for it.
+- **Games.** The GAME button above SETTINGS picks the game to play, and its list can scan Steam for the other one and
+  add OpenFairway to it, with the mods made for it. Settings, GAMES says which games OpenFairway supports and how each
+  one stands.
 - **What's new** shows the release notes of every version. **Settings** has the launcher's behaviour, update checks,
   the key that opens the mod manager in game (F8), launch options for the game, a Steam file check, and switches for
   mod makers (detailed log, developer console).
@@ -72,10 +101,12 @@ sent, and Settings can switch it off. The game itself always runs offline with m
 | Mod | What it does |
 |---|---|
 | Offline Main Menu | The offline main menu, the OpenFairway banner and the in-game mod manager (F8). |
-| Offline Career | The game's MyCAREER and MyPLAYER offline, with a local golfer and save. |
+| Skip Intro Videos | Gets you to the title screen in seconds. |
+| Offline Career | The game's MyCAREER offline with a local career save (in 2K25 also MyPLAYER, with a local golfer). |
 | Offline Progression | Rounds played offline give the club, ball and golfer XP 2K's servers would. 3x pace by default (`mods\OfflineProgression\data\settings.json`). |
 | The Climb | A management career mode built on custom screens. |
-| Skip Intro Videos | Gets you to the title screen in seconds. |
+
+Which game each one runs in is in the [games table](#games).
 
 ## How it works
 
@@ -85,9 +116,16 @@ Steam starts the unmodified game
        └─ OpenFairway.Core.dll
             ├─ offline guard        cuts the game process off from 2K's servers, or stays inactive
             ├─ IL2CPP bindings      the il2cpp_* exports of the running game (classes, fields, methods, invoke)
+            ├─ game layer           everything that knows a game's own code; one profile per game (2K25, 2K23)
             ├─ type dumper          writes OpenFairway\dump\*.cs (signatures only) for mod development
-            └─ mod loader           OpenFairway\mods\<Name>\<Name>.dll implementing IFairwayMod
+            └─ mod loader           OpenFairway\mods\<Name>\<Name>.dll implementing IFairwayMod, for this game
 ```
+
+The platform and the mods never name a game's classes through anything but the game layer
+(`src/OpenFairway.Core/Games`). There, `GameProfile.cs` says what differs between the games: where their code lives,
+their offline options, their menu layout and how they start a match. Both games come from HB Studios and share most of
+their code, so the rest of the layer (menus, popups, custom screens) is one implementation driven by the profile.
+[Adding a game of the series](docs/adding-a-game.md) walks through writing a profile for another one.
 
 ## Writing mods
 
@@ -110,7 +148,7 @@ public sealed class HelloBanner : IFairwayMod
 }
 ```
 
-The **[modding guide and API reference](https://xk0fe.github.io/pga2k25-openfairway/)** (also in
+The **[modding guide and API reference](https://xk0fe.github.io/pga2k-openfairway/)** (also in
 [`docs/index.html`](docs/index.html)) walks through menus, custom screens, courses, saving data and game objects, with
 the four [example mods](examples) as working code.
 
@@ -124,18 +162,20 @@ tools\package.ps1
 
 builds the platform, the mods and the launcher, downloads the Unity Doorstop loader, and assembles
 `dist\OpenFairway` (about 75 MB: it bundles the .NET 8 runtime). `tools\dev-cycle.ps1` is the developer loop: it
-deploys the build into the game, starts it in a small window and enables the developer console
-(`tools\devcon.py`). The game is found through Steam, or set `OPENFAIRWAY_GAME` to its folder.
+deploys the build and the mods made for the game into it, starts it in a small window and enables the developer
+console (`tools\devcon.py`). `-GameId pga2k23` works on 2K23 instead of 2K25. The game is found through Steam, or set
+`OPENFAIRWAY_GAME` to its folder.
 
 | Folder | Holds |
 |---|---|
 | `src/OpenFairway.API` | The mod API (`Api.cs`) |
-| `src/OpenFairway.Core` | The platform: loader, offline guard, runtime bridge, game UI, custom screens |
+| `src/OpenFairway.Core` | The platform: loader, offline guard, runtime bridge; `Games/` is the game layer (menus, custom screens, courses) |
+| `src/Shared` | The supported games (`games.json`), read by the platform, the launcher, the installer and the tools |
 | `src/OpenFairway.Launcher` | The launcher (.NET Framework 4.8, ships with Windows) |
 | `mods/` | The mods above |
 | `examples/` | Example mods for the guide |
 | `installer/` | Install and uninstall scripts |
-| `docs/` | The modding guide (`tools/make-docs.py`) and the design language (`design.md`) |
+| `docs/` | The modding guide (`tools/make-docs.py`), adding a game (`adding-a-game.md`) and the design language (`design.md`) |
 | `tools/` | Packaging, the developer loop, and the generators for the wordmark, banner and the launcher's 3D hole (`render-hole.py`, which exports `Assets/hole.scene`) |
 
 ## Ground rules

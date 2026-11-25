@@ -2,6 +2,8 @@
    Refuses to click unless the game window is in the foreground and is the window under that point,
    so a click can never land in another application. #>
 param([int]$X, [int]$Y)
+$NoGameFolder = $true
+. (Join-Path $PSScriptRoot 'game-path.ps1')
 Add-Type @"
 using System; using System.Runtime.InteropServices;
 public static class DevMouse {
@@ -17,7 +19,7 @@ public static class DevMouse {
   [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
 }
 "@
-$p = Get-Process PGATOUR2K25 -ErrorAction Stop
+$p = Get-OpenFairwayGameProcess
 $h = $p.MainWindowHandle
 $pt = New-Object DevMouse+POINT; $pt.X = $X; $pt.Y = $Y
 [void][DevMouse]::ClientToScreen($h, [ref]$pt)

@@ -14,6 +14,9 @@ namespace OpenFairway.Launcher
     internal sealed class ModPackage
     {
         public string Folder = "", Name = "", Version = "", Source = "";
+
+        /// <summary>mod.json "games": the games it is made for (none listed means the first, PGA TOUR 2K25).</summary>
+        public string[] Games = new string[0];
     }
 
     /// <summary>
@@ -70,7 +73,8 @@ namespace OpenFairway.Launcher
             {
                 var dlls = Directory.GetFiles(dir, "*.dll").Where(f => !IsApi(f)).ToList();
                 var name = Path.GetFileName(dir.TrimEnd('\\', '/'));
-                var folder = dlls.Any(d => Path.GetFileNameWithoutExtension(d).Equals(name, StringComparison.OrdinalIgnoreCase)) ? name
+                // A mod for several games may keep its DLLs only in the games' own folders.
+                var folder = GameEditions.IsModFolder(dir, name) ? name
                     : dlls.Count == 1 ? Path.GetFileNameWithoutExtension(dlls[0]) : null;
                 if (folder != null)
                 {
@@ -81,9 +85,11 @@ namespace OpenFairway.Launcher
                         {
                             package.Name = Json.Str(json, "name", folder);
                             package.Version = Json.Str(json, "version");
+                            package.Games = Json.Arr(json.TryGetValue("games", out var games) ? games : null).OfType<string>().ToArray();
                         }
                     }
                     catch (Exception) { /* the platform also loads mods with a broken manifest */ }
+                    package.Games = GameEditions.ModGames(dir, package.Games);
                     found.Add(package);
                     return;
                 }
@@ -95,7 +101,9 @@ namespace OpenFairway.Launcher
         /// <summary>A copy of the API beside a mod would load a second copy of its types; the platform has its own.</summary>
         private static bool IsApi(string file) => Path.GetFileName(file).Equals("OpenFairway.API.dll", StringComparison.OrdinalIgnoreCase);
 
-        public static void Install(ModPackage package, string modsDir)
+        /// <summary>Installs a mod into one game's mods folder. Of a mod made for several games, only what that game
+        /// uses is copied: the shared files and the game's own folder, not the other games'.</summary>
+        public static void Install(ModPackage package, string modsDir, GameEdition edition)
         {
             Directory.CreateDirectory(modsDir);
             var target = Path.Combine(modsDir, package.Folder);
@@ -103,7 +111,7 @@ namespace OpenFairway.Launcher
             // platform from ever treating it as a mod.
             var staging = Path.Combine(modsDir, "." + package.Folder + ".installing");
             if (Directory.Exists(staging)) Directory.Delete(staging, true);
-            Copy(package.Source, staging);
+            Copy(package.Source, staging, edition);
 
             // The mod's DLL must be named after its folder.
             var dlls = Directory.GetFiles(staging, "*.dll").Where(f => !IsApi(f)).ToList();
@@ -119,12 +127,14 @@ namespace OpenFairway.Launcher
             Directory.Move(staging, target);
         }
 
-        private static void Copy(string from, string to)
+        private static void Copy(string from, string to, GameEdition? edition = null)
         {
             Directory.CreateDirectory(to);
             foreach (var file in Directory.GetFiles(from))
                 if (!IsApi(file)) File.Copy(file, Path.Combine(to, Path.GetFileName(file)), true);
-            foreach (var dir in Directory.GetDirectories(from)) Copy(dir, Path.Combine(to, Path.GetFileName(dir)));
+            foreach (var dir in Directory.GetDirectories(from))
+                if (edition == null || !GameEditions.IsOtherGamesFolder(Path.GetFileName(dir), edition))
+                    Copy(dir, Path.Combine(to, Path.GetFileName(dir)));
         }
 
         public static void Cleanup(string? temp)

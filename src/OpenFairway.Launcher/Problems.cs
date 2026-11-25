@@ -19,10 +19,10 @@ namespace OpenFairway.Launcher
     {
         private const int GameLogLinesInReport = 40, LauncherLogLinesInReport = 25;
 
-        public static Problem GameMissing() => new Problem
+        public static Problem GameMissing(GameEdition game) => new Problem
         {
             Id = "game-missing", Title = "The game is not where it was",
-            Body = "PGATOUR2K25.exe is not in the game folder. If you moved or reinstalled the game, run Install OpenFairway.cmd again.",
+            Body = game.ExeName + " is not in the game folder. If you moved or reinstalled the game, run Install OpenFairway.cmd again.",
         };
 
         public static Problem LoaderMissing() => new Problem
@@ -43,10 +43,17 @@ namespace OpenFairway.Launcher
             Body = "winhttp.dll in the game folder belongs to another loader, and two cannot run together. Remove it, then press Retry.",
         };
 
-        public static Problem GameRunning() => new Problem
+        public static Problem AddGameFailed(GameEdition game, string why) => new Problem
+        {
+            Id = "add-game", Title = "OpenFairway was not added to " + game.Name,
+            Body = why,
+            Actions = new[] { Act.CopyDetails },
+        };
+
+        public static Problem GameRunning(GameEdition game) => new Problem
         {
             Id = "game-running", Title = "The game is already running",
-            Body = "Close PGA TOUR 2K25 first. If it is not on screen, end PGATOUR2K25.exe in Task Manager, then press Retry.",
+            Body = $"Close {game.Name} first. If it is not on screen, end {game.ExeName} in Task Manager, then press Retry.",
             Actions = new[] { Act.Retry },
         };
 
@@ -149,7 +156,7 @@ namespace OpenFairway.Launcher
             text.AppendLine($"Problem: {problem.Id} - {problem.Title}");
             if (problem.Detail.Length > 0) text.AppendLine("Detail: " + problem.Detail);
             text.AppendLine($"OpenFairway: {install.CoreVersion()} (launcher {GitHub.AgentVersion})");
-            text.AppendLine($"Game: PGA TOUR 2K25, Steam build {build?.BuildId ?? "unknown"}{(build?.UpdatePending == true ? " (update pending)" : "")}");
+            text.AppendLine($"Game: {install.Edition.Name}, Steam build {build?.BuildId ?? "unknown"}{(build?.UpdatePending == true ? " (update pending)" : "")}");
             text.AppendLine($"Windows: {Environment.OSVersion.Version}");
             text.AppendLine("Mods on: " + string.Join(", ", mods.Where(m => m.Enabled).Select(m => m.Folder + (m.Version.Length > 0 ? " " + m.Version : ""))));
             if (log != null)

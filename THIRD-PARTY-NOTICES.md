@@ -29,5 +29,5 @@ the photo and the drawing of the course. The downloaded data itself is not in th
 The blueprint is a work produced from OpenStreetMap data; the launcher credits it on the sheet itself
 ("MAP © OPENSTREETMAP CONTRIBUTORS"). Neither agency, nor the OpenStreetMap Foundation, endorses OpenFairway.
 
-PGA TOUR 2K25 is a trademark of its owners. OpenFairway contains no code, assets or data from the game; it reads
-what it needs from the running game at run time.
+PGA TOUR 2K25 and PGA TOUR 2K23 are trademarks of their owners. OpenFairway contains no code, assets or data from
+either game; it reads what it needs from the running game at run time.

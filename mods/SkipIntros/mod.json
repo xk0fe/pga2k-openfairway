@@ -1,7 +1,8 @@
 {
   "name": "Skip Intro Videos",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "OpenFairway",
+  "games": ["pga2k25", "pga2k23"],
   "description": "Jumps past the intro videos and timed logo screens at startup so you reach the title screen sooner.",
   "icon": "Icon_Play"
 }

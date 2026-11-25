@@ -15,7 +15,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 API = REPO / 'src' / 'OpenFairway.API' / 'Api.cs'
 OUT = REPO / 'docs' / 'index.html'
-REPO_URL = 'https://github.com/xk0fe/pga2k25-openfairway'
+REPO_URL = 'https://github.com/xk0fe/pga2k-openfairway'
 
 
 # ---- syntax colouring -------------------------------------------------------------------------------------------
@@ -167,9 +167,24 @@ def reference(types):
 # ---- the page --------------------------------------------------------------------------------------------------
 
 MOD_JSON_NEEDS = '''{
-  "openfairway": "0.5.0",
+  "games": ["pga2k25", "pga2k23"],
+  "openfairway": "0.6.0",
   "requires": ["OfflineCareer"]
 }'''
+
+MULTI_GAME_LAYOUT = r'''MyMod\
+  mod.json            "games" may be left out: the game folders say it
+  shared\             used by every game: assets, libraries
+    assets\banner.png
+  pga2k25\            only what 2K25 needs: its build of the mod
+    MyMod.dll
+  pga2k23\
+    MyMod.dll'''
+
+GAME_CHECK = '''if (ctx.Game.Id == "pga2k23")
+    ctx.Ui.MainMenu.SetTiles(MenuTab.Home, MenuTile.Game(GameTile.MyPlayer), MenuTile.Game(GameTile.QuickPlay));
+else
+    ctx.Ui.MainMenu.SetTiles(MenuTab.Home, MenuTile.Game(GameTile.QuickPlay), MenuTile.Game(GameTile.Training));'''
 
 INSTALL_STEPS = r'''dotnet build -c Release
 mkdir "<game>\OpenFairway\mods\HelloBanner"
@@ -206,11 +221,12 @@ mod manager list every mod with an on/off switch.</p>
   <div><span>Runs</span>Offline, in memory only</div>
 </div>
 <h3>How a mod gets loaded</h3>
-{block("""Steam starts PGA TOUR 2K25 (only from the OpenFairway launcher does the loader switch on)
+{block("""Steam starts the game (only from the OpenFairway launcher does the loader switch on)
   Unity Doorstop (version.dll) starts .NET 8 inside the game process
     OpenFairway.Core
       offline guard     the game cannot reach 2K's servers, or OpenFairway stays inactive
       runtime bridge    talks to the game through its own IL2CPP runtime (il2cpp_* exports)
+      game layer        what differs between PGA TOUR 2K25 and 2K23: where their code is, menus, options
       type dump         writes OpenFairway\\dump\\*.cs: every game class, field and method signature
       mod loader        loads mods\\<Name>\\<Name>.dll and calls OnLoad on its IFairwayMod""", 'text')}
 <p>Nothing on disk is changed: the game files stay as Steam installed them, and all changes live in memory for one
@@ -223,9 +239,11 @@ once when the game is up. Everything the platform offers comes in through <a hre
 <p>Next to the DLL goes a <code>mod.json</code>. The <code>icon</code> is the name of one of the game's own interface
 sprites; the mod manager shows the rest.</p>
 {block(mod_json, 'json', 'mod.json')}
-<p>Two optional fields say what a mod needs. <code>openfairway</code> is the oldest OpenFairway it works with: on an older
-one the platform leaves the mod out and says why, and the rest still load. <code>requires</code> lists the folders of mods
-it needs; the launcher marks the mod when one of them is off or missing, and the log says so too.</p>
+<p>Three optional fields say what a mod needs. <code>games</code> lists the games it is made for:
+<code>pga2k25</code>, <code>pga2k23</code> or both (see <a href="#games">Two games</a>); without it, a mod is taken to be for
+PGA TOUR 2K25. <code>openfairway</code> is the oldest OpenFairway it works with: on an older one the platform leaves the
+mod out and says why, and the rest still load. <code>requires</code> lists the folders of mods it needs; the launcher
+marks the mod when one of them is off or missing, and the log says so too.</p>
 {block(MOD_JSON_NEEDS, 'json', 'mod.json (optional fields)')}
 <p>Players can install a mod by dropping its <code>.zip</code> (or its folder) on the launcher. A zip that holds the mod's
 folder, or just its DLL and <code>mod.json</code>, both work.</p>''')
@@ -240,6 +258,37 @@ instead; copy one of them to start.</p>
 with every line from <code>ctx.Log</code> tagged with your mod's id.</p>
 <div class="note"><b>Copy only your DLL and mod.json.</b> A copy of <code>OpenFairway.API.dll</code> in your mod's folder
 would be a second, different API and the mod would not load.</div>''')
+
+    section('games', 'Two games', f'''
+<p>OpenFairway runs in <b>PGA TOUR 2K25</b> and <b>PGA TOUR 2K23</b>. Each game gets its own copy of OpenFairway with its
+own <code>mods</code> folder, and the launcher switches between them. A mod runs only in the games its
+<code>mod.json</code> lists, because mods reach into the game's own code, which differs between the two. List a game
+once you have tried the mod in it.</p>
+<p>Both games come from HB Studios and share most of their code, so most of what a mod does works in both. Where they
+differ, <a href="#ref-IModContext"><code>ctx.Game</code></a> says which game is running:</p>
+{block(GAME_CHECK)}
+<table>
+<tr><th></th><th>PGA TOUR 2K25</th><th>PGA TOUR 2K23</th></tr>
+<tr><td>Main menu</td><td>Four tabs of tiles under a banner</td><td>A tab bar; each tab a short list of rows. The banner's logo takes the place of HOME's large title</td></tr>
+<tr><td>Tabs</td><td>Home, Play, Compete, Design</td><td>Home is the first tab (MyPLAYER), Play is CASUAL, Compete is COMPETITIVE, Design is DESIGNER</td></tr>
+<tr><td>Game tiles</td><td>QuickPlay, Training, NewCourse, UnpublishedCourses, Career, Topgolf</td><td>QuickPlay (LOCAL MATCH), Training, NewCourse, UnpublishedCourses, MyPlayer, Topgolf</td></tr>
+<tr><td>Courses</td><td>All of them, with photos</td><td>All of them, with photos, a moment after the main menu first shows</td></tr>
+<tr><td>The game's code</td><td>HB.Golf.dll</td><td>Assembly-CSharp.dll</td></tr>
+</table>
+<h3>One mod for both games</h3>
+<p>A mod that needs a different build for each game keeps one folder per game, named after it, next to a
+<code>shared</code> folder for everything they share, so assets and libraries are not stored twice. The platform loads
+the DLL in the running game's folder (or the one at the mod's root), and looks for the mod's libraries there and in
+<code>shared</code>. Find your files with <code>ctx.ModFile("assets/banner.png")</code>: the running game's copy, else the
+shared one, else the root one. When a player installs the mod, each game gets only its own folder and the shared one.</p>
+{block(MULTI_GAME_LAYOUT, 'text', 'A mod for two games')}
+<p>A mod whose single DLL works in both games (most do: they reach the game through the platform) needs none of this;
+list both games in <code>mod.json</code> and keep everything at the root.</p>
+<p>Ask for the game's classes by 2K25's assembly names (<code>"HB.Golf"</code>, <code>"HB.Golf.Plugins"</code>), or pass
+<code>null</code> to search them all: either way <code>FindClass</code> finds them in both games. Each game writes its
+own type dump to <code>&lt;game&gt;\\OpenFairway\\dump</code>.</p>
+<p>Support for another game of the series is added to the platform, not to a mod: see
+<a href="{REPO_URL}/blob/main/docs/adding-a-game.md">Adding a game of the series</a>.</p>''')
 
     section('menus', 'The main menu', f'''
 <p><a href="#ref-IMainMenu"><code>ctx.Ui.MainMenu</code></a> rebuilds the game's own menu: which tabs show, the tiles on
@@ -326,7 +375,7 @@ PAGE = '''<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OpenFairway modding</title>
-<meta name="description" content="How to write OpenFairway mods for PGA TOUR 2K25: C# on .NET 8, examples and the full API reference.">
+<meta name="description" content="How to write OpenFairway mods for PGA TOUR 2K25 and 2K23: C# on .NET 8, examples and the full API reference.">
 <style>
 :root { --bg:#0F0F1D; --ink:#0A0A14; --strip:#191923; --tile:#242731; --line:#2E3140; --text:#F4F4F4; --muted:#AEB4C6;
         --faint:#6E7486; --cream:#FDEDDA; --red:#E0323F; --gold:#E9B949; --kw:#8FA3D9; --type:#E7E9EE; --str:#F3D9B8;
@@ -399,6 +448,7 @@ footer { color: var(--faint); font-size: 13px; margin-top: 80px; border-top: 1px
   <a href="#overview">Overview</a>
   <a href="#first-mod">Your first mod</a>
   <a href="#build">Build and install</a>
+  <a href="#games">Two games</a>
   <a href="#menus">The main menu</a>
   <a href="#screens">Custom screens</a>
   <a href="#courses">Courses and matches</a>
@@ -410,7 +460,7 @@ footer { color: var(--faint); font-size: 13px; margin-top: 80px; border-top: 1px
 </nav>
 <main>
   <h1>Write mods for OpenFairway</h1>
-  <p class="sub">C# on .NET 8, running inside your own offline copy of PGA TOUR 2K25.</p>
+  <p class="sub">C# on .NET 8, running inside your own offline copy of PGA TOUR 2K25 or 2K23.</p>
   <div class="hero-links"><a href="%%REPO%%">Source on GitHub</a><a class="ghost" href="%%REPO%%/tree/main/examples">Example mods</a><a class="ghost" href="%%REPO%%/releases">Download</a></div>
   %%GUIDE%%
   <section id="reference"><h2>API reference</h2>

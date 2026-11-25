@@ -41,8 +41,8 @@ internal sealed class ModLog(string id) : ILog
 
 internal sealed class Config
 {
-    /// <summary>Hosts the retail game talks to (from the game's own log); used to verify the process is isolated.</summary>
-    public string[] OfficialHosts { get; set; } = ["tgc6pc.hb-studios.com"];
+    /// <summary>Hosts to check as well as the game's own (src/Shared/games.json) once the process is isolated.</summary>
+    public string[] OfficialHosts { get; set; } = [];
 
     /// <summary>Seconds to wait after the game's runtime has initialised before attaching to it.</summary>
     public int StartupDelaySeconds { get; set; } = 2;

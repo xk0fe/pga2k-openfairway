@@ -53,12 +53,25 @@ namespace OpenFairway.Launcher
         private static readonly Point HoleCentre = new Point(636, 300);   // = ORIGIN in tools/render-hole.py
         private const int Grid = 24;
 
-        private readonly Install _install;
+        /// <summary>The install the launcher was started from; it keeps the choice of game.</summary>
+        private readonly Install _home;
+
+        /// <summary>OpenFairway in every supported game Steam has (one entry for most players).</summary>
+        private List<Install> _installs;
+
+        /// <summary>The game the launcher is showing and playing.</summary>
+        private Install _install;
+
+        /// <summary>The supported games as the last scan of the Steam libraries found them (Settings, GAMES).</summary>
+        private List<GameScan> _scan = new List<GameScan>();
+
+        private bool _addingGame;
+        private const string PressAdd = "add:";
         private readonly StartOptions _options;
         private readonly bool _preview;
         private readonly float _scale;
-        private readonly LauncherSettings _settings;
-        private readonly CoreConfig _config;
+        private LauncherSettings _settings;
+        private CoreConfig _config;
         private List<ModInfo> _mods;
 
         private readonly ManualResetEventSlim _pacing = new ManualResetEventSlim(false);
@@ -109,9 +122,14 @@ namespace OpenFairway.Launcher
 
         public MainForm(string home, StartOptions options, EventWaitHandle? showSignal = null, bool preview = false, float scale = 1f)
         {
-            _install = new Install(home);
-            if (!preview) LauncherLog.Open(_install.LauncherLog);
-            LauncherLog.Write($"Launcher {GitHub.AgentVersion} in {_install.Home}");
+            _home = new Install(home);
+            if (!preview) LauncherLog.Open(_home.LauncherLog);
+            LauncherLog.Write($"Launcher {GitHub.AgentVersion} in {_home.Home}");
+            _installs = Install.FindAll(_home);
+            var chosen = options.Game ?? LauncherSettings.Load(_home.SettingsFile).Game;
+            _install = _installs.FirstOrDefault(i => i.Edition.Id == chosen) ?? _home;
+            if (_installs.Count > 1) LauncherLog.Write("Games: " + string.Join(", ", _installs.Select(i => i.Edition.Name)) + "; showing " + _install.Edition.Name);
+            _scan = Install.Scan(_installs);
             _options = options;
             _preview = preview;
             _scale = scale;
@@ -222,6 +240,13 @@ namespace OpenFairway.Launcher
             StartPacer();
             if (_preview) return;
             _ = CheckForUpdates(thenInstall: _options.Press == "update");
+            // Development: "add:<game id>" adds OpenFairway to that game as the Settings button would.
+            if (_options.Press?.StartsWith(PressAdd, StringComparison.Ordinal) == true &&
+                _scan.FirstOrDefault(s => s.Edition.Id == _options.Press.Substring(PressAdd.Length) && s.Install == null && s.GameDir != null) is { } toAdd)
+            {
+                OpenPage(Page.Settings);
+                _ = AddGame(toAdd);
+            }
             if (_showSignal != null)
                 new Thread(() =>
                 {
@@ -439,6 +464,7 @@ namespace OpenFairway.Launcher
             if (e.KeyCode == Keys.Escape)
             {
                 if (_modal != null) CloseModal();
+                else if (_gameMenuOpen) SetGameMenu(false);
                 else if (_page != Page.None) OpenPage(Page.None);
                 e.Handled = true;
             }
@@ -662,6 +688,7 @@ namespace OpenFairway.Launcher
             PaintCard(g);
             PaintHomeLinks(g);
             PaintTiles(g);
+            PaintGameMenu(g);
             PaintPanel(g);
             PaintDrop(g);
             PaintModal(g);
@@ -825,8 +852,86 @@ namespace OpenFairway.Launcher
                 lg.FillPath(_turfBrush!, fairway);
             });
 
-            var tagline = new RectangleF(L0 + 1, _wordBounds.Bottom + 16, 320, 20);
-            Reveal(g, 0.16, tagline, lg => Gfx.TextFit(lg, "Offline mods for PGA TOUR 2K25", _body, Theme.Muted, tagline));
+            var tagline = new RectangleF(L0 + 1, _wordBounds.Bottom + 16, 380, 20);
+            Reveal(g, 0.16, tagline, lg => Gfx.TextFit(lg, Tagline, _body, Theme.Muted, tagline));
+        }
+
+        /// <summary>What the launcher is, under its name. The series, not the games: which game it plays is beside PLAY.</summary>
+        private const string Tagline = "Mod manager and offline launcher for PGA TOUR 2K";
+
+        private static bool SameInstall(Install a, Install b) => string.Equals(a.Home, b.Home, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>Looks through the Steam libraries again; OpenFairway set up meanwhile (by the installer) joins the
+        /// games the launcher switches between.</summary>
+        private void ScanGames()
+        {
+            var shown = _install;
+            _installs = Install.FindAll(_home);
+            _install = _installs.FirstOrDefault(i => SameInstall(i, shown)) ?? shown;
+            _scan = Install.Scan(_installs);
+            LauncherLog.Write("Scanned: " + string.Join(", ", _scan.Select(s => s.Edition.Short + (s.Install != null ? " set up" : s.GameDir != null ? " found" : " missing"))));
+            _uiDirty = true;
+            MarkDirty();
+        }
+
+        private void OfferAddGame(GameScan game) =>
+            ShowModal("ADD " + game.Edition.Name.ToUpperInvariant() + "?",
+                $"OpenFairway is set up next to {game.Edition.Name}, with the mods made for it, copied from this one. The game's own files stay as Steam installed them, and Uninstall OpenFairway.cmd removes it again.",
+                "ADD", () => _ = AddGame(game));
+
+        private async Task AddGame(GameScan game)
+        {
+            if (_addingGame || game.GameDir == null) return;
+            _addingGame = true;
+            _notice = "Adding OpenFairway to " + game.Edition.Name;
+            MarkDirty();
+            try
+            {
+                var source = _install;
+                var gameDir = game.GameDir;
+                var added = await Task.Run(() => source.AddTo(game.Edition, gameDir));
+                LauncherLog.Write($"Added OpenFairway to {game.Edition.Name} in {gameDir}");
+                ScanGames();
+                SwitchGame(_installs.FirstOrDefault(i => SameInstall(i, added)) ?? added);
+                _notice = "OpenFairway is set up in " + game.Edition.Name;
+            }
+            catch (InstallException e)
+            {
+                ShowProblem(Problems.AddGameFailed(game.Edition, e.Message), null);
+            }
+            catch (Exception e)
+            {
+                ShowProblem(Problems.AddGameFailed(game.Edition, "Windows did not let the launcher write to the game's folder: " + e.Message), null);
+            }
+            finally
+            {
+                _addingGame = false;
+                MarkDirty();
+            }
+        }
+
+        /// <summary>Shows another game's OpenFairway: its status, mods and settings. Remembered for the next start.</summary>
+        private void SwitchGame(Install target)
+        {
+            if (target == _install || _updating || _phase != Phase.Idle) return;
+            LauncherLog.Write("Switched to " + target.Edition.Name);
+            _install = target;
+            _settings = LauncherSettings.Load(_install.SettingsFile);
+            _config = CoreConfig.Load(_install.ConfigFile);
+            _mods = _install.LoadMods();
+            foreach (var mod in _mods) Knob(mod);
+            _problem = null;
+            Recheck();
+            _last = LogReport.Read(_install.GameLog);
+            try
+            {
+                var remembered = _install == _home ? _settings : LauncherSettings.Load(_home.SettingsFile);
+                remembered.Game = target.Edition.Id;
+                remembered.Save();
+            }
+            catch (Exception e) { LauncherLog.Write("Could not remember the game: " + e.Message); }
+            _uiDirty = true;
+            Invalidate();
         }
 
         /// <summary>Now and then a band of sunlight passes over the grass of the wordmark. It is drawn over the cached
@@ -887,6 +992,7 @@ namespace OpenFairway.Launcher
         private void PaintTiles(Graphics g)
         {
             var on = _mods.Count(m => m.Enabled);
+            Reveal(g, 0.30, GameRect, PaintGamePicker);
             Reveal(g, 0.36, SettingsTile, lg => Tile(lg, SettingsTile, "tile:settings", "SETTINGS", null,
                 (ig, cx, cy, c) => Gfx.Gear(ig, cx, cy, 10.5f, c), () => OpenPage(Page.Settings)));
             Reveal(g, 0.42, ModsTile, lg => Tile(lg, ModsTile, "tile:mods", "MODS",

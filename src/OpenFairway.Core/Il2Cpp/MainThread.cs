@@ -26,7 +26,7 @@ internal sealed unsafe class MainThread : IMainThread
     public event Action? Update;
     public event Action? Quitting;
     public long Frame { get; private set; }
-    public double Time => Game.AnimationClock.Now;
+    public double Time => Games.AnimationClock.Now;
 
     public void Post(Action action) => Posted.Enqueue(action);
 

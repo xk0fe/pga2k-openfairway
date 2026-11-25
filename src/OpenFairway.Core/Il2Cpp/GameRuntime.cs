@@ -51,9 +51,15 @@ internal sealed unsafe class GameRuntime : IGameRuntime
         return klass;
     }
 
+    /// <summary>The game's own assemblies, by the names PGA TOUR 2K25 gives them, mapped to what this game calls
+    /// them (Games.GameProfile.AssemblyNames), so a class asked for as "HB.Golf" is found in every game.</summary>
+    public static IReadOnlyDictionary<string, string> AssemblyNames { get; set; } = new Dictionary<string, string>();
+
     private static IntPtr FindTopLevelClass(string? assembly, string @namespace, string name)
     {
-        var wanted = assembly == null ? null : assembly.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ? assembly : assembly + ".dll";
+        var asked = assembly != null && assembly.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ? assembly[..^4] : assembly;
+        if (asked != null && AssemblyNames.TryGetValue(asked, out var own)) asked = own;
+        var wanted = asked == null ? null : asked + ".dll";
         fixed (byte* ns = Utf8(@namespace), n = Utf8(name))
         {
             foreach (var (imageName, image) in Images())
@@ -258,6 +264,8 @@ internal sealed unsafe class GameRuntime : IGameRuntime
 
     public IntPtr FindMethod(IntPtr klass, string name, int parameterCount = -1)
     {
+        // The runtime dereferences the class without checking it, so a class that was not found stops here.
+        if (klass == IntPtr.Zero) return IntPtr.Zero;
         // "Name(Full.Type.A,Full.Type.B)" selects an overload by parameter types; the class chain is searched.
         var open = name.IndexOf('(');
         if (open < 0)
@@ -424,6 +432,7 @@ internal sealed unsafe class GameRuntime : IGameRuntime
 
     private static IntPtr Field(IntPtr klass, string name)
     {
+        if (klass == IntPtr.Zero) throw new GameException($"Field '{name}' asked of a class that was not found.");
         var field = TryField(klass, name);
         if (field == IntPtr.Zero) throw new GameException($"Field '{name}' not found on {Native.TypeName(Native.class_get_type(klass))}.");
         return field;

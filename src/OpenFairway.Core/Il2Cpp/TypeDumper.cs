@@ -109,12 +109,5 @@ internal static unsafe class TypeDumper
         _ => "private",
     };
 
-    private static string BuildId(string gameDir)
-    {
-        var bootConfig = Path.Combine(gameDir, "PGATOUR2K25_Data", "boot.config");
-        if (File.Exists(bootConfig))
-            foreach (var line in File.ReadAllLines(bootConfig))
-                if (line.StartsWith("build-guid=")) return line["build-guid=".Length..].Trim();
-        return "unknown";
-    }
+    private static string BuildId(string gameDir) => Games.CurrentGame.Build(gameDir);
 }

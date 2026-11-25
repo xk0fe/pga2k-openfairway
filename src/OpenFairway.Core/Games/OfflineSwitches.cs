@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using OpenFairway.Core.Il2Cpp;
 
-namespace OpenFairway.Core.Game;
+namespace OpenFairway.Core.Games;
 
 /// <summary>
 /// Flips options the game itself ships with (its RuntimeOptions object) so that offline play behaves well:
@@ -17,7 +17,7 @@ internal static unsafe class OfflineSwitches
     private static int _corrections;
 
     /// <summary>Sets the switches if they are not already set. Cheap enough to call several times a second.</summary>
-    public static void Enforce(GameRuntime runtime, Config config)
+    public static void Enforce(GameRuntime runtime, Config config, GameProfile profile)
     {
         try
         {
@@ -28,7 +28,7 @@ internal static unsafe class OfflineSwitches
             if (online == IntPtr.Zero || proTour == IntPtr.Zero) return;
 
             var changed = false;
-            if (config.ForceOfflineBoot && Get<byte>(runtime, online, "forceOfflineBoot") == 0)
+            if (config.ForceOfflineBoot && profile.HasOfflineBootOption && Get<byte>(runtime, online, "forceOfflineBoot") == 0)
             {
                 Set<byte>(runtime, online, "forceOfflineBoot", 1);
                 changed = true;
@@ -39,7 +39,7 @@ internal static unsafe class OfflineSwitches
                 changed = true;
             }
             if (changed && ++_corrections <= 10)
-                Log.Info($"Switches applied (forceOfflineBoot, saveFileLocation=Local), time #{_corrections}; options object {proTour:X}");
+                Log.Info($"Switches applied ({(profile.HasOfflineBootOption ? "forceOfflineBoot, " : "")}saveFileLocation=Local), time #{_corrections}; options object {proTour:X}");
         }
         catch (Exception e)
         {

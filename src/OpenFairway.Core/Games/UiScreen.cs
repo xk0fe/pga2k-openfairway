@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using OpenFairway.API;
 using OpenFairway.Core.Il2Cpp;
 
-namespace OpenFairway.Core.Game;
+namespace OpenFairway.Core.Games;
 
 /// <summary>
 /// A full-screen custom screen for mods, drawn with the engine's own UI components and the game's own fonts and

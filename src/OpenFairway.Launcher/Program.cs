@@ -16,6 +16,7 @@ namespace OpenFairway.Launcher
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            GameCatalog.Load();
             var home = Path.GetDirectoryName(Application.ExecutablePath)!;
             var options = StartOptions.Parse(args);
 
@@ -23,7 +24,7 @@ namespace OpenFairway.Launcher
             if (render >= 0)
             {
                 // Developer aid: draw the settled window to an image without showing it. An optional third argument
-                // scales the picture. --page, --state, --expand, --drop, --modal and --capture pick what it shows.
+                // scales the picture. --game, --page, --state, --expand, --drop, --modal and --capture pick what it shows.
                 var scale = args.Length > render + 3 && float.TryParse(args[render + 3], NumberStyles.Float, CultureInfo.InvariantCulture, out var s) ? s : 1f;
                 using (var form = new MainForm(args[render + 2], options, preview: true, scale: scale))
                 {
@@ -79,7 +80,7 @@ namespace OpenFairway.Launcher
     /// rest are for the updater and for development.</summary>
     internal sealed class StartOptions
     {
-        public string? Updated, UpdateFailedLog, PretendVersion, Press, Page, State;
+        public string? Updated, UpdateFailedLog, PretendVersion, Press, Page, State, Game;
         public bool Play, Drop, Modal, Capture, Still;
         public int Expand = -1;
 
@@ -95,9 +96,10 @@ namespace OpenFairway.Launcher
                 Updated = Value("--updated"),
                 UpdateFailedLog = Value("--update-failed"),
                 PretendVersion = Value("--pretend-version"),   // development: behave as if this version were installed
-                Press = Value("--press"),                      // development: "update" installs an available update
+                Press = Value("--press"),                      // development: "update" installs an available update; "add:<game id>" adds a game
                 Page = Value("--page"),
                 State = Value("--state"),
+                Game = Value("--game"),                        // shows this game (its id) instead of the one last picked, without remembering it
                 Expand = int.TryParse(Value("--expand"), out var e) ? e : -1,
                 Play = Array.IndexOf(args, "--play") >= 0,
                 Drop = Array.IndexOf(args, "--drop") >= 0,

@@ -11,16 +11,20 @@ namespace OpenFairway.Mods;
 ///  - Per-user documents go to the server. The game sends any document whose id starts with one of its local
 ///    storage prefixes to local files instead, so the session's user id is given such a prefix.
 ///  - The career flow asks whether the game is online. That flag is set while these screens are in use (the
-///    process itself stays cut off from the network by the platform).
-///  - The player save lives in the publisher's cloud. A local one is used instead: the game's built-in default
-///    save the first time, then whatever the player made of it, written with the game's own serializer to a
-///    file in this mod's data folder.
+///    process itself stays cut off from the network by the platform). PGA TOUR 2K23 only asks on the way in, and
+///    with the flag up it tries to upload every round's scorecard and shows a network error for each; there the
+///    flag is up only until the career's first screen shows.
+///  - The player save lives in the publisher's cloud (PGA TOUR 2K25). A local one is used instead: the game's
+///    built-in default save the first time, then whatever the player made of it, written with the game's own
+///    serializer to a file in this mod's data folder. PGA TOUR 2K23 keeps its golfer offline by itself, so there
+///    the golfer is left alone.
 /// Nothing here grants currency, items or passes: the local player starts as the game's default golfer.
 /// </summary>
 public sealed unsafe class OfflineCareer : IFairwayMod
 {
     // "commonStorage" is the prefix of the game's general-purpose local document storage.
     private const string LocalUserId = "commonStorageOpenFairway";
+    private const string Pga2K23 = "pga2k23";
     private const string SaveFileName = "golfer.json";
     private static readonly TimeSpan SaveInterval = TimeSpan.FromMinutes(2);
 
@@ -29,6 +33,16 @@ public sealed unsafe class OfflineCareer : IFairwayMod
     private IntPtr _user, _connection, _playerSave, _screens, _settings;
     private IntPtr _localSave;       // the player save this mod keeps for the session
     private bool _active, _broken;
+
+    /// <summary>The career is on its way in (2K23): the game's "are we online" gate is open until it is through.</summary>
+    private bool _gateOpen;
+    private DateTime _gateCloses;
+
+    /// <summary>Screens of the career itself; once one is up, the way in is through.</summary>
+    private const string CareerScreenPrefix = "ProTour";
+
+    /// <summary>The longest the career may take to show its first screen before the gate closes anyway.</summary>
+    private static readonly TimeSpan GateLimit = TimeSpan.FromSeconds(45);
     private string _lastSaved = "";
     private DateTime _nextSave = DateTime.UtcNow;
     private string _playerId = "";
@@ -53,10 +67,10 @@ public sealed unsafe class OfflineCareer : IFairwayMod
         if (_user != IntPtr.Zero) return true;
         _user = _rt.FindClass("HB.Golf", "", "User");
         _connection = _rt.FindClass("HB.Golf", "", "ConnectionManager");
-        _playerSave = _rt.FindClass("HB.Golf", "", "MyPlayerSave");
+        _playerSave = OwnsGolfer ? IntPtr.Zero : _rt.FindClass("HB.Golf", "", "MyPlayerSave");
         _screens = _rt.FindClass("HB.Golf", "MVC", "ScreenContainer");
         _settings = _rt.FindClass("HB.Golf", "", "ServerSettings");
-        if (_user == IntPtr.Zero || _connection == IntPtr.Zero || _playerSave == IntPtr.Zero || _screens == IntPtr.Zero)
+        if (_user == IntPtr.Zero || _connection == IntPtr.Zero || (!OwnsGolfer && _playerSave == IntPtr.Zero) || _screens == IntPtr.Zero)
         {
             _broken = true;
             _ctx.Log.Warn("Career types not found; offline career is unavailable (game update?).");
@@ -66,6 +80,12 @@ public sealed unsafe class OfflineCareer : IFairwayMod
         return true;
     }
 
+    /// <summary>PGA TOUR 2K23 keeps its golfer offline by itself (its MyPLAYER works offline as it is).</summary>
+    private bool OwnsGolfer => _ctx.Game.Id == Pga2K23;
+
+    /// <summary>The main-menu panel whose CareerHome starts the career: MyCAREER's own tab in 2K23, PLAY in 2K25.</summary>
+    private string CareerPanel => _ctx.Game.Id == Pga2K23 ? "MainMenuPGA" : "MainMenuPlayNow";
+
     // ---- entry points ---------------------------------------------------------------------------------------
 
     /// <summary>Opens the game's career, creating the local career on first use.</summary>
@@ -74,14 +94,22 @@ public sealed unsafe class OfflineCareer : IFairwayMod
         // The game's own entry point, started the way the game starts it: through its screen container.
         const string show = "Show(System.Func<System.Action<MVC.BaseController>,System.Collections.IEnumerable>)";
         var showMethod = _rt.FindMethod(_screens, show);
-        var careerHome = _rt.FindMethod(_rt.FindClass("HB.Golf", "MVC", "MainMenuPlayNow"), "CareerHome", 1);
+        var careerHome = _rt.FindMethod(_rt.FindClass("HB.Golf", "MVC", CareerPanel), "CareerHome", 1);
         if (showMethod == IntPtr.Zero || careerHome == IntPtr.Zero) throw new InvalidOperationException("career entry point not found");
+        _gateOpen = true;
+        _gateCloses = DateTime.UtcNow + GateLimit;
+        Prepare();
         _rt.Invoke(showMethod, IntPtr.Zero, _rt.CreateDelegateForMethod(_rt.GetParameterClass(showMethod, 0), careerHome));
     });
 
     /// <summary>Opens the game's MyPLAYER home: appearance, info, outfits, golf bag and progression for the local golfer.</summary>
     private void OpenPlayer() => Open("MyPLAYER", () =>
     {
+        if (OwnsGolfer)
+        {
+            if (!_ctx.Ui.MainMenu.Open(GameTile.MyPlayer)) throw new InvalidOperationException("the game's MyPLAYER is not on the menu");
+            return;
+        }
         const string show = "Show(System.Func<MVC.BaseController>)";
         var showMethod = _rt.FindMethod(_screens, show);
         var editorClass = _rt.FindClass("HB.Golf", "MVC", "EditGolferAndEquipment");
@@ -98,7 +126,7 @@ public sealed unsafe class OfflineCareer : IFairwayMod
     {
         try
         {
-            if (!int.TryParse(amount, out var xp) || xp <= 0 || !Resolve()) return;
+            if (!int.TryParse(amount, out var xp) || xp <= 0 || !Resolve() || OwnsGolfer) return;
             _active = true;
             Prepare();
             var add = _rt.FindMethod(_playerSave, "IncrementXp", 2);
@@ -119,7 +147,7 @@ public sealed unsafe class OfflineCareer : IFairwayMod
     {
         try
         {
-            if (!int.TryParse(amount, out var xp) || xp <= 0 || !Resolve()) return;
+            if (!int.TryParse(amount, out var xp) || xp <= 0 || !Resolve() || OwnsGolfer) return;
             _active = true;
             Prepare();
             var add = _rt.FindMethod(_playerSave, "IncrementEquipmentXp", 2);
@@ -163,6 +191,11 @@ public sealed unsafe class OfflineCareer : IFairwayMod
         try
         {
             if (!_active || frame % 15 != 0) return;
+            if (_gateOpen && (DateTime.UtcNow > _gateCloses || _ctx.Ui.IdleScreen?.StartsWith(CareerScreenPrefix, StringComparison.Ordinal) == true))
+            {
+                _gateOpen = false;
+                _ctx.Log.Info("Career is open; the game is back in its offline mode.");
+            }
             Prepare();
             if (DateTime.UtcNow >= _nextSave) SavePlayer("periodic");
         }
@@ -179,8 +212,9 @@ public sealed unsafe class OfflineCareer : IFairwayMod
         var current = _rt.ReadString(_rt.GetStaticField<IntPtr>(_user, "golfUserIdCache"));
         if (current != LocalUserId) _rt.SetStaticReference(_user, "golfUserIdCache", _rt.NewString(LocalUserId));
 
-        // 2. The career's own "are we online" gate.
-        if (_rt.GetStaticField<byte>(_connection, "_gameOnline") == 0) _rt.SetStaticField<byte>(_connection, "_gameOnline", 1);
+        // 2. The career's own "are we online" gate: always up in 2K25, only on the way in where the game keeps it (2K23).
+        byte online = !OwnsGolfer || _gateOpen ? (byte)1 : (byte)0;
+        if (_rt.GetStaticField<byte>(_connection, "_gameOnline") != online) _rt.SetStaticField(_connection, "_gameOnline", online);
 
         // The season's official courses ship with the game; tell it to use those copies instead of asking the server.
         if (_settings != IntPtr.Zero)
@@ -195,6 +229,7 @@ public sealed unsafe class OfflineCareer : IFairwayMod
         }
 
         // 3. The local player. Some game screens try the cloud, fail and clear the player; put ours back.
+        if (OwnsGolfer) return;
         if (_localSave == IntPtr.Zero) _localSave = LoadSavedPlayer();
         if (_localSave == IntPtr.Zero) _localSave = CreateDefaultSave();
         if (_rt.GetStaticField<IntPtr>(_playerSave, "_instance") != _localSave)
